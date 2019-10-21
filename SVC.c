@@ -30,10 +30,13 @@ static PCB * waitingToRun[PRIORITY_LEVELS];
  *          sets PCB sp and pid.
  *          calls addPCB to add PCB to waitingToRun with
  *          respective priority
- * @param   [in] void (*code)(void)
+ * @param   [in] void (*code)(void): pointer to the start of the process code
+ *          [in] unsigned int pid: Process ID of process being registered
+ *          [in] unsigned int priority: Processes initial priority
+ * @return  int: **Not really sure how a process would fail registration
+ *                 but thats what it's for**
  *
  * */
-
 int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
 {
 
@@ -50,6 +53,15 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
    return 1;
 }
 
+/*
+ * @brief   Adds a PCB to the end of a waitingToRun queue.
+ *          If its the first process in the queue its next
+ *          and prev pointers are set to itself.
+ *          Otherwise, its added to the end, and pointers are
+ *          reassigned accordingly
+ * @param   [in] PCB *new: PCB being added to the queue
+ *          [in] unsigned int priority: priority level
+ * */
 void addPCB(PCB *new, unsigned int priority)
 {
     if(waitingToRun[priority] != NULL)
@@ -59,13 +71,17 @@ void addPCB(PCB *new, unsigned int priority)
         waitingToRun[priority] -> prev = new;
     }
     else
-    {
+    {   //first in queue
         waitingToRun[priority] = new;
         waitingToRun[priority]->next = new;
         waitingToRun[priority]->prev = new;
     }
 }
-
+/*
+ * @brief   Sets running PCB pointer to the head
+ *          of the non-empty waitingToRun queue with
+ *          the highest priority
+ * */
 void setRunning(void)
 {
     int i;

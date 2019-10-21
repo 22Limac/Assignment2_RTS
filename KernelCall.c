@@ -1,8 +1,6 @@
 /*
  * @file    KernelCall.c
- * @brief   Contains functionality to identify command
- *          passed from holding buffer and call its respective
- *          function with arguments
+ * @brief
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
