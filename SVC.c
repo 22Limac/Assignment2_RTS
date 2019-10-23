@@ -14,6 +14,7 @@
 #define GLOBAL_SVC
 #include "SVC.h"
 #include "Process.h"
+#include "KernelCall.h"
 
 #define PRIORITY_LEVELS 5
 #define HIGH_PRIORITY 4
@@ -76,6 +77,24 @@ void addPCB(PCB *new, unsigned int priority)
         waitingToRun[priority]->next = new;
         waitingToRun[priority]->prev = new;
     }
+}
+
+PCB * removePCB()
+{
+    PCB * toRemove = running;
+    if (running == running -> next )
+    {
+        running = NULL;
+        setRunning();
+    }
+    else
+    {
+        running -> next -> prev = running -> prev;
+        running -> prev ->next = running ->next;
+        running = running -> next;
+
+    }
+    return toRemove;
 }
 /*
  * @brief   Sets running PCB pointer to the head
@@ -152,7 +171,8 @@ void SVCHandler(StackFrame *argptr)
    Handler mode and uses the MSP
  */
 static int firstSVCcall = TRUE;
-//struct kcallargs *kcaptr;
+struct kcallargs *kcaptr;
+PCB * toTerminate;
 
 if (firstSVCcall)
 {
@@ -196,17 +216,21 @@ else /* Subsequent SVCs */
    assigning the value of R7 (arptr -> r7) to kcaptr
  */
 
-//#ifdef FOR_KERNEL_ARGS
-//    kcaptr = (struct kcallargs *) argptr -> r7;
-//    switch(kcaptr -> code)
-//    {
-//    case KERNEL_FUNCTION_XXX:
-//        kcaptr -> rtnvalue = do_function_xxx();
-//    break;
-//    default:
-//        kcaptr -> rtnvalue = -1;
-//    }
-//#endif
+    kcaptr = (struct kcallargs *) argptr -> r7;
+    switch(kcaptr -> code)
+    {
+    case GETID:
+        kcaptr -> rtnvalue = running ->pid;
+    break;
+    case TERMINATE:
+           toTerminate = removePCB();
+           free(&(toTerminate->sp));
+           free(toTerminate);
+    break;
+    default:
+        kcaptr -> rtnvalue = -1;
+    }
+
 }
 }
 

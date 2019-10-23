@@ -10,18 +10,33 @@
 #include "KernelCall.h"
 #include "Process.h"
 
+void assignR7(volatile unsigned long data)
+{
+    __asm("     mov     r7,r0");
+}
+
 int getid()
 {
-volatile struct kcallargs getidarg; /* Volatile to actually reserve space on stack */
-getidarg . code = GETID;
+volatile struct kcallargs getIdArg; /* Volatile to actually reserve space on stack */
+getIdArg . code = GETID;
 
 /* Assign address if getidarg to R7 */
-//assignR7((unsigned long) &getidarg);
+assignR7((unsigned long) &getIdArg);
 
 SVC();
 
-return getidarg . rtnvalue;
+return getIdArg . rtnvalue;
+}
 
+void terminate()
+{
+    volatile struct kcallargs terminateArg; /* Volatile to actually reserve space on stack */
+    terminateArg.code = TERMINATE;
+
+    /* Assign address if getidarg to R7 */
+    assignR7((unsigned long) &terminateArg);
+
+    SVC();
 }
 
 

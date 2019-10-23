@@ -12,6 +12,7 @@
 
 extern int registerProcess(void (*)(void), unsigned int, unsigned int);
 extern void addPCB(PCB *, unsigned int);
+extern PCB * removePCB(void);
 extern void setRunning(void);
 
 #else
@@ -19,5 +20,6 @@ extern void setRunning(void);
 void addPCB(PCB *, unsigned int);
 void SVCall(void);
 void SVCHandler(StackFrame*);
+void setRunning(void);
 
 #endif /* GLOBAL_SVC */
