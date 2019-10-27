@@ -20,8 +20,8 @@
 #define HIGH_PRIORITY 4
 #define LOW_PRIORITY 0
 extern void systick_init();
-
-static PCB *running;
+#define RUNNING waitingToRun[currentPriority]
+static int currentPriority = 0;
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
 
@@ -63,9 +63,10 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
  * @param   [in] PCB *new: PCB being added to the queue
  *          [in] unsigned int priority: priority level
  * */
-void addPCB(PCB *new, unsigned int priority)
+int addPCB(PCB *new, unsigned int priority)
 {
-    if(waitingToRun[priority] != NULL)
+
+    if(waitingToRun[priority])
     {
         new->next = waitingToRun[priority];
         waitingToRun[priority] -> prev -> next = new;
@@ -77,41 +78,41 @@ void addPCB(PCB *new, unsigned int priority)
         waitingToRun[priority]->next = new;
         waitingToRun[priority]->prev = new;
     }
+    currentPriority = (currentPriority<priority)? priority: currentPriority;
+    return currentPriority;
 }
 
 PCB * removePCB()
 {
-    PCB * toRemove = running;
-    if (running == running -> next )
+    PCB * toRemove = RUNNING;
+    if (RUNNING == RUNNING -> next )
     {
-        running = NULL;
-        setRunning();
+        RUNNING = NULL;
+        decrementPriority();
     }
     else
     {
-        running -> next -> prev = running -> prev;
-        running -> prev ->next = running ->next;
-        running = running -> next;
-
+        RUNNING -> next -> prev = RUNNING -> prev;
+        RUNNING -> prev ->next = RUNNING ->next;
+        RUNNING = RUNNING -> next;
     }
     return toRemove;
 }
-/*
- * @brief   Sets running PCB pointer to the head
- *          of the non-empty waitingToRun queue with
- *          the highest priority
- * */
-void setRunning(void)
-{
-    int i;
-    for ( i=0; i< 5; i++)
-    {
-        if (waitingToRun[HIGH_PRIORITY - i] != 0)
-        {
-            running = waitingToRun[HIGH_PRIORITY - i];
-        }
-    }
 
+void decrementPriority(void)
+{
+    do
+    {
+        currentPriority--;
+    }
+    while(!(RUNNING)&&currentPriority);
+}
+
+void pendSV(void)
+{
+    save_registers();
+    RUNNING = RUNNING -> next;
+    restore_registers();
 }
 
 void SVCall(void)
@@ -171,7 +172,7 @@ void SVCHandler(StackFrame *argptr)
    Handler mode and uses the MSP
  */
 static int firstSVCcall = TRUE;
-struct kcallargs *kcaptr;
+struct kCallArgs *kcaptr;
 PCB * toTerminate;
 
 if (firstSVCcall)
@@ -188,7 +189,7 @@ if (firstSVCcall)
    should be increased by 8 * sizeof(unsigned int).
  * sp is increased because the stack runs from low to high memory.
 */
-    set_PSP(running -> sp + 8 * sizeof(unsigned int));
+    set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));
 
     firstSVCcall = FALSE;
     /* Start SysTick */
@@ -216,21 +217,23 @@ else /* Subsequent SVCs */
    assigning the value of R7 (arptr -> r7) to kcaptr
  */
 
-    kcaptr = (struct kcallargs *) argptr -> r7;
+    kcaptr = (struct kCallArgs *) argptr -> r7;
     switch(kcaptr -> code)
     {
     case GETID:
-        kcaptr -> rtnvalue = running ->pid;
+        kcaptr -> rtnvalue = RUNNING ->pid;
+    break;
+    case NICE:
+       kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
     break;
     case TERMINATE:
-           toTerminate = removePCB();
-           free(&(toTerminate->sp));
-           free(toTerminate);
+        toTerminate = removePCB();
+        free(&(toTerminate->sp));
+        free(toTerminate);
     break;
     default:
         kcaptr -> rtnvalue = -1;
     }
-
 }
 }
 

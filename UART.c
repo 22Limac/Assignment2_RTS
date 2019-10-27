@@ -10,13 +10,26 @@
 
 #define GLOBAL_UART
 #include "UART.h"
-#include "Queue.h"
-#include "Utilities.h"
-#include "InterruptType.h"
 
+#define TRUE    1
+#define FALSE   0
 /*UART interrupt buffer */
-static interruptType Data = {UART,NUL};
+static char dataRegister;
+static int gotData = FALSE;
 
+int getDataRegister(char * data)
+{
+    if (gotData)
+    {
+    *data = dataRegister;
+    }
+    return gotData;
+}
+
+void dataRecieved(void)
+{
+    gotData = FALSE;
+}
 /*
  * @brief initialize UART0
  *        with BAUD-RATE:       115200
@@ -82,7 +95,7 @@ void UART0_IntEnable(unsigned long flags)
  */
 void forceOutput(char data)
 {
-        while((UART0_FR_R & UART_FR_TXFF)!=FALSE);//wait until not busy
+        while(!(UART0_FR_R & UART_FR_TXFF));//wait until not busy
         UART0_DR_R = data;
 }
 
@@ -103,13 +116,13 @@ void UART0_IntHandler(void)
     {
         /* RECV done - clear interrupt and make char available to application */
         UART0_ICR_R |= UART_INT_RX;
-        Data.data = UART0_DR_R;
-        enqueue(INPUT,Data);
+        gotData = TRUE;
+        dataRegister = UART0_DR_R;
     }
-    UART0_ICR_R |= UART_INT_TX;
-    if(dequeue(OUTPUT, &Data))
+
+    if(UART0_MIS_R & UART_INT_TX)
     {
-        forceOutput(Data.data);
+        UART0_ICR_R |= UART_INT_TX;
     }
 
 }

@@ -66,6 +66,7 @@
     extern void UART0_IntEnable(unsigned long);
     extern void UART0_IntHandler(void);
     extern void forceOutput(char);
+    extern char getDataRegister(void);
 
 #else
 

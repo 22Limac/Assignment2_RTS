@@ -14,12 +14,20 @@
 
 enum kernelcallcodes {GETID, NICE, TERMINATE};
 
-struct kcallargs
+struct kCallArgs
 {
-unsigned int code;
-unsigned int rtnvalue;
-unsigned int arg1;
-unsigned int arg2;
+    unsigned int code;
+    int rtnvalue;
+    unsigned int arg1;
+    unsigned int arg2;
+};
+
+struct pMsgStruct
+{
+    int toMailbox;
+    int fromMailbox;
+    void * msg;
+    int size;
 };
 
 #endif /* KERNELCALL_H_ */

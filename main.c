@@ -28,7 +28,6 @@ void processOne(void)
 int main(void)
 {
     registerProcess(processOne, 1, 4);
-    setRunning();
     SVC();
 	return 0;
 }

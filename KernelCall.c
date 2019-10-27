@@ -17,7 +17,7 @@ void assignR7(volatile unsigned long data)
 
 int getid()
 {
-volatile struct kcallargs getIdArg; /* Volatile to actually reserve space on stack */
+volatile struct kCallArgs getIdArg; /* Volatile to actually reserve space on stack */
 getIdArg . code = GETID;
 
 /* Assign address if getidarg to R7 */
@@ -30,13 +30,26 @@ return getIdArg . rtnvalue;
 
 void terminate()
 {
-    volatile struct kcallargs terminateArg; /* Volatile to actually reserve space on stack */
+    volatile struct kCallArgs terminateArg; /* Volatile to actually reserve space on stack */
     terminateArg.code = TERMINATE;
 
     /* Assign address if getidarg to R7 */
     assignR7((unsigned long) &terminateArg);
 
     SVC();
+}
+
+int nice(int newPriority)
+{
+    volatile struct kCallArgs niceArgs; /* Volatile to actually reserve space on stack */
+    niceArgs.code = NICE;
+    niceArgs.arg1 = newPriority;
+
+    /* Assign address if getidarg to R7 */
+    assignR7((unsigned long) &niceArgs);
+
+    SVC();
+    return niceArgs.rtnvalue;
 }
 
 

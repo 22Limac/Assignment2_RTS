@@ -11,13 +11,14 @@
 #define GLOBAL_SVC
 
 extern int registerProcess(void (*)(void), unsigned int, unsigned int);
-extern void addPCB(PCB *, unsigned int);
+extern int addPCB(PCB *, unsigned int);
 extern PCB * removePCB(void);
-extern void setRunning(void);
 
 #else
 
-void addPCB(PCB *, unsigned int);
+void decrementPriority(void);
+int addPCB(PCB *, unsigned int);
+PCB * removePCB(void);
 void SVCall(void);
 void SVCHandler(StackFrame*);
 void setRunning(void);
