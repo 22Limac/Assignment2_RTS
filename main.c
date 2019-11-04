@@ -4,11 +4,12 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date
+ * @date    4-Nov-2019 (edited)
  */
 
 #include "SVC.h"
 #include "Process.h"
+#include "SYSTICK.h"
 int process = 0;
 /*
  * @brief   definition of processOne the first process registered
@@ -28,6 +29,8 @@ void processOne(void)
 int main(void)
 {
     registerProcess(processOne, 1, 4);
+    initpendSV();
+    initSYSTICK();
     SVC();
 	return 0;
 }

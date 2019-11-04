@@ -6,9 +6,9 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date
+ * @date    4-Nov-2019 (edited)
  */
-
+#include "Messages.h"
 #ifndef PROCESS_H_
 #define PROCESS_H_
 
@@ -63,6 +63,16 @@ unsigned long pc;
 unsigned long psr;
 } StackFrame;
 
+/* Possible states of processes */
+
+typedef enum Process_States
+{
+    Running,
+    WTR,
+    Blocked,
+    Terminated
+} State;
+
 /* Process control block */
 
 typedef struct ProcessControlBlock_
@@ -73,6 +83,12 @@ unsigned long pid;
 /* Links to adjacent PCBs */
 struct ProcessControlBlock_ *next;
 struct ProcessControlBlock_ *prev;
+/* Priority of process */
+unsigned char priority;
+/* State of process */
+State state;
+/* Pointer to message storing space */
+struct Message * message;
 } PCB;
 
 #endif /* PROCESS_H_ */

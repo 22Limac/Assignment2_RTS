@@ -7,7 +7,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date
+ * @date    1-Nov-2019 (edited)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +15,7 @@
 #include "SVC.h"
 #include "Process.h"
 #include "KernelCall.h"
+#include "Messages.h"
 
 #define PRIORITY_LEVELS 5
 #define HIGH_PRIORITY 4
@@ -22,6 +23,8 @@
 extern void systick_init();
 #define RUNNING waitingToRun[currentPriority]
 static int currentPriority = 0;
+
+#define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
 
@@ -33,12 +36,12 @@ static PCB * waitingToRun[PRIORITY_LEVELS];
  *          respective priority
  * @param   [in] void (*code)(void): pointer to the start of the process code
  *          [in] unsigned int pid: Process ID of process being registered
- *          [in] unsigned int priority: Processes initial priority
+ *          [in] unsigned char priority: Process' initial priority
  * @return  int: **Not really sure how a process would fail registration
  *                 but thats what it's for**
  *
- * */
-int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
+ */
+int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
 {
 
    unsigned long *processStack = (unsigned long *)malloc(512*sizeof(unsigned long));
@@ -49,8 +52,10 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
    PCB * newProcess = (PCB*)malloc(sizeof(PCB));
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
+   newProcess -> priority = priority;
+   newProcess -> state = WTR;
 
-   addPCB(newProcess, priority);
+   addPCB(newProcess, newProcess -> priority);
    return 1;
 }
 
@@ -60,25 +65,26 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned int priority)
  *          and prev pointers are set to itself.
  *          Otherwise, its added to the end, and pointers are
  *          reassigned accordingly
- * @param   [in] PCB *new: PCB being added to the queue
- *          [in] unsigned int priority: priority level
+ * @param   [in] PCB *newPCB: PCB being added to the queue
+ * @param   [in] unsigned int newPriority: Priority of queue to which
+ *          newPCB will be added
  * */
-int addPCB(PCB *new, unsigned int priority)
+int addPCB(PCB *newPCB, unsigned int newPriority)
 {
 
-    if(waitingToRun[priority])
+    if(waitingToRun[newPriority])
     {
-        new->next = waitingToRun[priority];
-        waitingToRun[priority] -> prev -> next = new;
-        waitingToRun[priority] -> prev = new;
+        newPCB->next = waitingToRun[newPriority];
+        waitingToRun[newPriority] -> prev -> next = newPCB;
+        waitingToRun[newPriority] -> prev = newPCB;
     }
     else
     {   //first in queue
-        waitingToRun[priority] = new;
-        waitingToRun[priority]->next = new;
-        waitingToRun[priority]->prev = new;
+        waitingToRun[newPriority] = newPCB;
+        waitingToRun[newPriority]->next = newPCB;
+        waitingToRun[newPriority]->prev = newPCB;
     }
-    currentPriority = (currentPriority<priority)? priority: currentPriority;
+    currentPriority = (currentPriority<newPriority)? newPriority: currentPriority;
     return currentPriority;
 }
 
@@ -93,7 +99,7 @@ PCB * removePCB()
     else
     {
         RUNNING -> next -> prev = RUNNING -> prev;
-        RUNNING -> prev ->next = RUNNING ->next;
+        RUNNING -> prev -> next = RUNNING ->next;
         RUNNING = RUNNING -> next;
     }
     return toRemove;
@@ -105,7 +111,20 @@ void decrementPriority(void)
     {
         currentPriority--;
     }
-    while(!(RUNNING)&&currentPriority);
+    while(!(RUNNING)&& (currentPriority > 0));
+}
+
+/*
+ * @brief   Configures pendSV interrupt by setting it to the lowest
+ *          possible priority allowing other kernel calls to trigger
+ *          the pendSV routine upon finishing their business.
+ */
+void initpendSV(void)
+{
+    /* Set pendSV to lowest possible priority */
+    SETPENDSVPRIORITY;
+
+    return;
 }
 
 void pendSV(void)
@@ -154,6 +173,71 @@ __asm("     POP     {PC}");
 
 }
 
+
+/*
+ * @brief   Kernel side of message sending operation
+ * @param   [in] struct Message * msginfo:
+ *          pointer to structure containing information required
+ *          for message sending
+ * @return  unsigned int: size of message received
+ */
+unsigned int KernelSendMessage(struct Message * msginfo)
+{
+    /* Check whether destination queue's owner is currently blocked */
+    if(Mailbox[msginfo->dest].owner->state == Blocked)
+    {
+        /* Recipient process is blocked so give information directly to process and unblock it */
+        //TODO: Limit number of copied bytes
+        memcpy(Mailbox[msginfo->dest].owner->message, msginfo->msgptr, msginfo->size);
+
+        /* Unblock recipient process */
+        addPCB(Mailbox[msginfo->dest].owner, Mailbox[msginfo->dest].owner->priority);
+        Mailbox[msginfo->dest].owner->state = WTR;
+    }
+    else
+    {
+        /* Recipient process is not currently looking for message so add it to destination
+         * queue and move on.
+         */
+        enqueueMessage(msginfo);
+    }
+//TODO: Must adjust return value in case of failure
+    return msginfo->size;
+}
+
+
+/*
+ * @brief   Kernel side of message receiving operation
+ * @param   [in] struct Message * msginfo:
+ *          pointer to structure containing information required
+ *          for message receipt
+ * @return  unsigned int: size of message received
+ */
+unsigned int KernelRecvMessage(struct Message * msginfo)
+{
+    PCB * blockedProcess;
+//TODO: Must check that queue in question is owned by currently
+//      running process
+    struct Message newMessage = dequeueMessage(msginfo->dest);
+
+    /* Check dequeue was successful */
+    if(newMessage.msgptr == NULL)
+    {
+        /* No message was found queued so block running process */
+        blockedProcess = removePCB();
+        blockedProcess->state = Blocked;
+    }
+    else
+    {
+        /* Copy message over to queue's owner */
+        //TODO: Limit number of copied bytes
+        memcpy(RUNNING->message->msgptr, newMessage.msgptr, newMessage.size);
+    }
+
+//TODO: Adjust return value for failures. right now this returns 0 upon failure
+    return newMessage.size;
+}
+
 void SVCHandler(StackFrame *argptr)
 {
 /*
@@ -174,6 +258,8 @@ void SVCHandler(StackFrame *argptr)
 static int firstSVCcall = TRUE;
 struct kCallArgs *kcaptr;
 PCB * toTerminate;
+
+//TODO: Must disable any and all interrupts here; primarily SYSTICK interrupts
 
 if (firstSVCcall)
 {
@@ -225,6 +311,12 @@ else /* Subsequent SVCs */
     break;
     case NICE:
        kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
+    break;
+    case SENDMSG:
+        kcaptr -> rtnvalue = KernelSendMessage((struct Message *)kcaptr->arg1);
+    break;
+    case RECEIVEMSG:
+        kcaptr -> rtnvalue = KernelRecvMessage((struct Message *)kcaptr->arg1);
     break;
     case TERMINATE:
         toTerminate = removePCB();

@@ -6,20 +6,20 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date
+ * @date    4-Nov-2019 (edited)
  */
 
 #ifndef KERNELCALL_H_
 #define KERNELCALL_H_
 
-enum kernelcallcodes {GETID, NICE, TERMINATE};
+enum kernelcallcodes {GETID, NICE, SENDMSG, RECEIVEMSG, TERMINATE};
 
 struct kCallArgs
 {
     unsigned int code;
     int rtnvalue;
-    unsigned int arg1;
-    unsigned int arg2;
+    unsigned long arg1;
+    unsigned long arg2;
 };
 
 struct pMsgStruct

@@ -4,15 +4,18 @@
 
 SHELL = cmd.exe
 
-CG_TOOL_ROOT := C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.11.LTS
+CG_TOOL_ROOT := C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS
 
 GEN_OPTS__FLAG := 
 GEN_CMDS__FLAG := 
 
 ORDERED_OBJS += \
 "./KernelCall.obj" \
+"./Messages.obj" \
 "./Process.obj" \
 "./SVC.obj" \
+"./SYSTICK.obj" \
+"./UART.obj" \
 "./main.obj" \
 "./tm4c1294ncpdt_startup_ccs.obj" \
 "../tm4c1294ncpdt.cmd" \
@@ -144,22 +147,22 @@ all: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 LightWeightMessagingKernel.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: ARM Linker'
-	"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.11.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C1294NCPDT -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"LightWeightMessagingKernel.map" --heap_size=0 --stack_size=512 -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.11.LTS/lib" -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.11.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="LightWeightMessagingKernel_linkInfo.xml" --rom_model -o "LightWeightMessagingKernel.out" $(ORDERED_OBJS)
+	"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C1294NCPDT -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"LightWeightMessagingKernel.map" --heap_size=0 --stack_size=512 -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/lib" -i"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="LightWeightMessagingKernel_linkInfo.xml" --rom_model -o "LightWeightMessagingKernel.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
 LightWeightMessagingKernel.hex: $(EXE_OUTPUTS)
 	@echo 'Building files: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo 'Invoking: ARM Hex Utility'
-	"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.11.LTS/bin/armhex"  -o "LightWeightMessagingKernel.hex" $(EXE_OUTPUTS__QUOTED)
+	"C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.6.LTS/bin/armhex"  -o "LightWeightMessagingKernel.hex" $(EXE_OUTPUTS__QUOTED)
 	@echo 'Finished building: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo ' '
 
 # Other Targets
 clean:
 	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "KernelCall.obj" "Process.obj" "SVC.obj" "main.obj" "tm4c1294ncpdt_startup_ccs.obj" 
-	-$(RM) "KernelCall.d" "Process.d" "SVC.d" "main.d" "tm4c1294ncpdt_startup_ccs.d" 
+	-$(RM) "KernelCall.obj" "Messages.obj" "Process.obj" "SVC.obj" "SYSTICK.obj" "UART.obj" "main.obj" "tm4c1294ncpdt_startup_ccs.obj" 
+	-$(RM) "KernelCall.d" "Messages.d" "Process.d" "SVC.d" "SYSTICK.d" "UART.d" "main.d" "tm4c1294ncpdt_startup_ccs.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
