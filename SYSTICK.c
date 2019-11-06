@@ -8,6 +8,7 @@
  * @date    29-Oct-2019 (created)
  * @date    1-Nov-2019 (edited)
  */
+#include "SYSTICK.h"
 #define GLOBAL_SYSTICK
 /* Register Addresses */
 #define REG_ST_CTL    (*((volatile unsigned long *)0xE000E010))
@@ -23,7 +24,7 @@
 #define ST_RELOAD_PERIOD  (0x00028F61UL)
 
 /* Macro used to request a pendSV call */
-#define CALLPENDSV ((*(volatile unsigned long *)0xE000ED04) |= 0x10000000UL)
+#define CALLPENDSV (*((volatile unsigned long *)0xE000ED04) |= 0x10000000UL)
 
 /*
  * @brief   Initializes the SYSTICK timer and configures its interrupt.

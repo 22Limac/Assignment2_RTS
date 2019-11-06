@@ -1,0 +1,6 @@
+nice() - Patrick
+termination - Patrick
+Message send + receive - Liam
+UART - Liam
+getID
+

@@ -43,6 +43,13 @@ void terminate()
 int nice(int newPriority)
 {
     volatile struct kCallArgs niceArgs; /* Volatile to actually reserve space on stack */
+
+    /* First check whether requested priority is valid */
+    if((newPriority < 0) || (newPriority >= PRIORITY_LEVELS))
+    {
+        return -1;
+    }
+
     niceArgs.code = NICE;
     niceArgs.arg1 = newPriority;
 

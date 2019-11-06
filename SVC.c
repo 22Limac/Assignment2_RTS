@@ -7,7 +7,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    1-Nov-2019 (edited)
+ * @date    5-Nov-2019 (edited)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,13 +17,12 @@
 #include "KernelCall.h"
 #include "Messages.h"
 
-#define PRIORITY_LEVELS 5
 #define HIGH_PRIORITY 4
 #define LOW_PRIORITY 0
-extern void systick_init();
 #define RUNNING waitingToRun[currentPriority]
 static int currentPriority = 0;
 
+/* Macro used to set the priority of the pendSV interrupt */
 #define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
@@ -53,7 +52,6 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
    newProcess -> priority = priority;
-   newProcess -> state = WTR;
 
    addPCB(newProcess, newProcess -> priority);
    return 1;
@@ -72,7 +70,7 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
 int addPCB(PCB *newPCB, unsigned int newPriority)
 {
 
-    if(waitingToRun[newPriority])
+    if(waitingToRun[newPriority] != NULL)
     {
         newPCB->next = waitingToRun[newPriority];
         waitingToRun[newPriority] -> prev -> next = newPCB;
@@ -100,8 +98,9 @@ PCB * removePCB()
     {
         RUNNING -> next -> prev = RUNNING -> prev;
         RUNNING -> prev -> next = RUNNING ->next;
-        RUNNING = RUNNING -> next;
+//        RUNNING = RUNNING -> next;
     }
+    //TODO: Must carry out a context switch here
     return toRemove;
 }
 
@@ -127,10 +126,16 @@ void initpendSV(void)
     return;
 }
 
+
+/*
+ * @brief   pendSV ISR that carries out context switches
+ */
 void pendSV(void)
 {
     save_registers();
+    RUNNING -> sp = get_PSP();
     RUNNING = RUNNING -> next;
+    set_PSP(RUNNING -> sp);
     restore_registers();
 }
 
@@ -184,7 +189,7 @@ __asm("     POP     {PC}");
 unsigned int KernelSendMessage(struct Message * msginfo)
 {
     /* Check whether destination queue's owner is currently blocked */
-    if(Mailbox[msginfo->dest].owner->state == Blocked)
+    if(Mailbox[msginfo->dest].owner->message != NULL)
     {
         /* Recipient process is blocked so give information directly to process and unblock it */
         //TODO: Limit number of copied bytes
@@ -192,7 +197,6 @@ unsigned int KernelSendMessage(struct Message * msginfo)
 
         /* Unblock recipient process */
         addPCB(Mailbox[msginfo->dest].owner, Mailbox[msginfo->dest].owner->priority);
-        Mailbox[msginfo->dest].owner->state = WTR;
     }
     else
     {
@@ -215,7 +219,6 @@ unsigned int KernelSendMessage(struct Message * msginfo)
  */
 unsigned int KernelRecvMessage(struct Message * msginfo)
 {
-    PCB * blockedProcess;
 //TODO: Must check that queue in question is owned by currently
 //      running process
     struct Message newMessage = dequeueMessage(msginfo->dest);
@@ -224,8 +227,7 @@ unsigned int KernelRecvMessage(struct Message * msginfo)
     if(newMessage.msgptr == NULL)
     {
         /* No message was found queued so block running process */
-        blockedProcess = removePCB();
-        blockedProcess->state = Blocked;
+        removePCB();
     }
     else
     {
@@ -257,7 +259,7 @@ void SVCHandler(StackFrame *argptr)
  */
 static int firstSVCcall = TRUE;
 struct kCallArgs *kcaptr;
-PCB * toTerminate;
+PCB * callerPCB;
 
 //TODO: Must disable any and all interrupts here; primarily SYSTICK interrupts
 
@@ -278,8 +280,6 @@ if (firstSVCcall)
     set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));
 
     firstSVCcall = FALSE;
-    /* Start SysTick */
-//    systick_init();
 
     /*
      - Change the current LR to indicate return to Thread mode using the PSP
@@ -310,7 +310,19 @@ else /* Subsequent SVCs */
         kcaptr -> rtnvalue = RUNNING ->pid;
     break;
     case NICE:
+       callerPCB = RUNNING;
        kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
+       /* Here, RUNNING has been changed to the PCB of the process that is to be
+        * run next. If RUNNING does not point to the process that requested a nice()
+        * then a context switch is required. Note that no registers are pushed/pulled
+        * because the caller's registers have been pushed prior to arriving here and
+        * the new RUNNING's registers will be pulled once this service call is concluded.
+        */
+       if(RUNNING != callerPCB)
+       {
+           callerPCB -> sp = get_PSP();
+           set_PSP(RUNNING -> sp);
+       }
     break;
     case SENDMSG:
         kcaptr -> rtnvalue = KernelSendMessage((struct Message *)kcaptr->arg1);
@@ -319,9 +331,9 @@ else /* Subsequent SVCs */
         kcaptr -> rtnvalue = KernelRecvMessage((struct Message *)kcaptr->arg1);
     break;
     case TERMINATE:
-        toTerminate = removePCB();
-        free(&(toTerminate->sp));
-        free(toTerminate);
+        callerPCB = removePCB();
+        free(&(callerPCB->sp));
+        free(callerPCB);
     break;
     default:
         kcaptr -> rtnvalue = -1;

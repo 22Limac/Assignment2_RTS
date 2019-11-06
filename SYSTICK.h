@@ -12,6 +12,10 @@
 #ifndef SYSTICK_H_
 #define SYSTICK_H_
 
+extern void initSYSTICK(void);
+
+#else
+
 void initSYSTICK(void);
 
 #endif /* SYSTICK_H_ */

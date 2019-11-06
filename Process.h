@@ -17,6 +17,8 @@
 #define FALSE   0
 #define PRIVATE static
 
+#define PRIORITY_LEVELS 5
+
 #define SVC()   __asm(" SVC #0")
 #define disable()   __asm(" cpsid i")
 #define enable()    __asm(" cpsie i")
@@ -63,15 +65,6 @@ unsigned long pc;
 unsigned long psr;
 } StackFrame;
 
-/* Possible states of processes */
-
-typedef enum Process_States
-{
-    Running,
-    WTR,
-    Blocked,
-    Terminated
-} State;
 
 /* Process control block */
 
@@ -85,8 +78,6 @@ struct ProcessControlBlock_ *next;
 struct ProcessControlBlock_ *prev;
 /* Priority of process */
 unsigned char priority;
-/* State of process */
-State state;
 /* Pointer to message storing space */
 struct Message * message;
 } PCB;
