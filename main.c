@@ -43,7 +43,6 @@ void Priority4Process1(void)
         counter++;
     }
 
-
     return;
 }
 
@@ -55,7 +54,7 @@ void Priority4Process2(void)
 {
     unsigned int counter = 0U;
 
-    while(1)
+    while(counter < 100U)
     {
         counter++;
     }
@@ -99,11 +98,11 @@ void UARTProcess(void)
 int main(void)
 {
     /* Register idle process first */
-    registerProcess(idleProcess, 1, 0);
+    registerProcess(idleProcess, 1U, 0U);
 
     /* Register other test processes */
-    registerProcess(Priority4Process1, 2, 4);
-    registerProcess(Priority4Process2, 3, 4);
+    registerProcess(Priority4Process1, 2U, 4U);
+    registerProcess(Priority4Process2, 3U, 4U);
 
     /* Initialize required hardware + interrupts */
     initpendSV();

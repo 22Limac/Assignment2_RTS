@@ -7,7 +7,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    5-Nov-2019 (edited)
+ * @date    7-Nov-2019 (edited)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +24,8 @@ static int currentPriority = 0;
 
 /* Macro used to set the priority of the pendSV interrupt */
 #define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
+
+extern void terminate(void);
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
 
@@ -47,13 +49,13 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
    StackFrame *processSP = (StackFrame*) processStack;
    processSP -> psr = 0x01000000;
    processSP -> pc = (unsigned long)code;
+   processSP -> lr = (unsigned long)terminate;
 
    PCB * newProcess = (PCB*)malloc(sizeof(PCB));
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
-   newProcess -> priority = priority;
 
-   addPCB(newProcess, newProcess -> priority);
+   addPCB(newProcess, priority);
    return 1;
 }
 
@@ -82,6 +84,7 @@ int addPCB(PCB *newPCB, unsigned int newPriority)
         waitingToRun[newPriority]->next = newPCB;
         waitingToRun[newPriority]->prev = newPCB;
     }
+    newPCB->priority = newPriority;
     currentPriority = (currentPriority<newPriority)? newPriority: currentPriority;
     return currentPriority;
 }
@@ -98,7 +101,7 @@ PCB * removePCB()
     {
         RUNNING -> next -> prev = RUNNING -> prev;
         RUNNING -> prev -> next = RUNNING ->next;
-//        RUNNING = RUNNING -> next;
+        RUNNING = RUNNING -> next;
     }
     //TODO: Must carry out a context switch here
     return toRemove;
@@ -334,6 +337,7 @@ else /* Subsequent SVCs */
         callerPCB = removePCB();
         free(&(callerPCB->sp));
         free(callerPCB);
+        set_PSP(RUNNING -> sp);
     break;
     default:
         kcaptr -> rtnvalue = -1;
