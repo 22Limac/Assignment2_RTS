@@ -8,10 +8,10 @@
  * @date    20-Oct-2019 (created)
  * @date    4-Nov-2019 (edited)
  */
-#include "Messages.h"
+
 #ifndef PROCESS_H_
 #define PROCESS_H_
-
+#include "Messages.h"
 
 #define TRUE    1
 #define FALSE   0
@@ -72,6 +72,7 @@ typedef struct ProcessControlBlock_
 {
 /* Stack pointer - r13 (PSP) */
 unsigned long sp;
+unsigned long topOfStack;
 unsigned long pid;
 /* Links to adjacent PCBs */
 struct ProcessControlBlock_ *next;
@@ -79,7 +80,8 @@ struct ProcessControlBlock_ *prev;
 /* Priority of process */
 unsigned char priority;
 /* Pointer to message storing space */
-struct Message * message;
+int * returnValue;
+struct Message_ * message;
 } PCB;
 
 #endif /* PROCESS_H_ */

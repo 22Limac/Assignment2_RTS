@@ -14,20 +14,30 @@
 
 enum kernelcallcodes {GETID, NICE, SENDMSG, RECEIVEMSG, TERMINATE};
 
-struct kCallArgs
+
+typedef struct KernelCallArgs_
 {
-    unsigned int code;
-    int rtnvalue;
+    unsigned long code;
+    long rtnvalue;
     unsigned long arg1;
     unsigned long arg2;
-};
+}KernelArgs;
 
-struct pMsgStruct
+typedef struct SendMessage_
 {
-    int toMailbox;
-    int fromMailbox;
-    void * msg;
+    int destinationMB;
+    int fromMB;
+    void * contents;
     int size;
-};
+}SendMessage;
+
+typedef struct ReceiveMessage_
+{
+    int bindedMB;
+    int * returnMB;
+    void * contents;
+    int maxSize;
+}ReceiveMessage;
+
 
 #endif /* KERNELCALL_H_ */

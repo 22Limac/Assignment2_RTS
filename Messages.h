@@ -10,43 +10,66 @@
 #pragma once
 #include "Process.h"
 /* Maximum number of message queues allowed */
-#define NUM_MSG_QUEUES (16U)
-/* Maximum number of entries that can be contained in a queue */
-#define MAX_QUEUE_SIZE (16U)
+#define MAILBOX_AMOUNT 16
+#define MESSAGE_SYS_LIMIT 32
+
+
+typedef union FromMB_
+{
+    int value;
+    int* addr;
+}FromMB;
+
+typedef union Contents_
+{
+    char value[MESSAGE_SYS_LIMIT];
+    char* addr;
+}Contents;
 
 /* Structure containing information about messages */
-struct Message
+typedef struct Message_
 {
-    /* ID of source process */
-    unsigned char source;
+
     /* ID of destination process */
-    unsigned char dest;
-    /* Pointer to message contents */
-    void * msgptr;
+    FromMB from;
+
+    /*Next pointer for linked list*/
+    struct Message_* next;
     /* Size in bytes of message */
-    unsigned int size;
-};
+    int size;
+
+    Contents contents;
+}Message;
 
 
 /* Structure comprising a single message queue */
-struct MessageQueue
+typedef struct MailBox_
 {
-    /* Index of first occupied slot in message queue */
-    unsigned char top;
-    /* Index of next empty slot in message queue */
-    unsigned char bottom;
-    /* Size indicator of message queue */
-    unsigned char size;
-    /* Array containing queue entries */
-    struct Message array[MAX_QUEUE_SIZE];
     /* Owner of message queue */
-    PCB * owner;
-};
+    struct ProcessControlBlock_ * owner;
+    /* Index of first occupied slot in message queue */
+    Message* head;
+    /* Index of next empty slot in message queue */
+    Message* tail;
 
 
-/* Message Queues */
-struct MessageQueue Mailbox[NUM_MSG_QUEUES];
+}MailBox;
 
-/* Function prototypes */
-unsigned char enqueueMessage(struct Message * msginfo);
-struct Message dequeueMessage(unsigned char index);
+
+
+
+#ifndef GLOBAL_MESSAGES
+#define GLOBAL_MESSAGES
+
+extern int kernelSend(int,int,void *, int);
+extern int kernelReceive(int,int*,void*,int*);
+void initMessagePool(void);
+
+#else
+
+int kernelSend(int,int,void *, int);
+int kernelReceive(int,int*,void*,int*);
+void addToPool(Message *);
+Message * retrieveFromPool(Message*);
+
+#endif /* GLOBAL_SVC */

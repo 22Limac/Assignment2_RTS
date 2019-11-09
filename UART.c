@@ -95,7 +95,7 @@ void UART0_IntEnable(unsigned long flags)
  */
 void forceOutput(char data)
 {
-        while(!(UART0_FR_R & UART_FR_TXFF));//wait until not busy
+        while(UART0_FR_R & UART_FR_TXFF);//wait until not busy
         UART0_DR_R = data;
 }
 
