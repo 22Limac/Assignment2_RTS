@@ -8,6 +8,8 @@
  */
 #pragma once
 #include "Process.h"
+/* Macro used to set the priority of the pendSV interrupt */
+#define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
 
 #ifndef GLOBAL_SVC
 #define GLOBAL_SVC
@@ -16,6 +18,7 @@ extern int registerProcess(void (*)(void), unsigned int, unsigned int);
 extern int addPCB(PCB *, unsigned int);
 extern PCB * removePCB(void);
 extern void initpendSV(void);
+extern const PCB * getRunningPCB(void);
 
 #else
 
@@ -25,6 +28,6 @@ PCB * removePCB(void);
 void initpendSV(void);
 void SVCall(void);
 void SVCHandler(StackFrame*);
-void setRunning(void);
+
 
 #endif /* GLOBAL_SVC */

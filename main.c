@@ -11,6 +11,7 @@
 #include "Process.h"
 #include "SYSTICK.h"
 #include "UART.h"
+#include "Messages.h"
 
 extern int nice(int newPriority);
 
@@ -25,8 +26,6 @@ void idleProcess(void)
     /* Loop indefinitely */
     while(1);
 
-    /* Should never reach here but if so do a terminate */
-    return;
 }
 
 /*
@@ -35,33 +34,12 @@ void idleProcess(void)
  */
 void Priority4Process1(void)
 {
-    unsigned int counter = 0U;
-
-    nice(3);
 
     while(1)
     {
-        counter++;
+        forceOutput('Z');
     }
 
-    return;
-}
-
-
-/*
- * @brief   definition of process used to test process termination
- *          terminates after a while
- */
-void Priority4Process2(void)
-{
-    unsigned int counter = 0U;
-
-    while(counter < 100U)
-    {
-        counter++;
-    }
-
-    return;
 }
 
 
@@ -70,42 +48,41 @@ void Priority4Process2(void)
  */
 void Priority4Process3(void)
 {
-    unsigned int counter = 0U;
+
 
     while(1)
     {
-        counter++;
+        forceOutput('U');
     }
 
-    return;
 }
 
 /*
  * @brief   definition of a process used to set up and output
  *          to UART0
  */
-/*
-void UARTProcess(void)
-{
-    unsigned char output;
 
-    /* Initialize UART0
-    UART0_Init();
-    InterruptEnable(5);
+//void UARTProcess(void)
+//{
+////    unsigned char output;
+//
+//    // Initialize UART0
+//    UART0_Init();
+//    InterruptEnable(5);
+//
+//    // Loop indefinitely
+//    while(1)
+//    {
+////        for(output = '!'; output <= '~'; output++) //TODO: Magic characters
+////        {
+//            forceOutput('U');
+////            forceOutput('\n'); //TODO: Magic character
+////        }
+//    }
+//
+//    return;
+//}
 
-    /* Loop indefinitely
-    while(1)
-    {
-        for(output = '!'; output <= '~'; output++) //TODO: Magic characters
-        {
-            forceOutput(output);
-            forceOutput('\n'); //TODO: Magic character
-        }
-    }
-
-    return;
-}
-*/
 
 /*
  * @brief   registers processes.
@@ -115,17 +92,21 @@ void UARTProcess(void)
  * */
 int main(void)
 {
+    initMessagePool();
     /* Register idle process first */
     registerProcess(idleProcess, 1U, 0U);
 
     /* Register other test processes */
-    registerProcess(Priority4Process1, 2U, 4U);
-    registerProcess(Priority4Process2, 3U, 4U);
-    registerProcess(Priority4Process3, 4U, 4U);
+    registerProcess(Priority4Process1, 2, 3);
+    registerProcess(Priority4Process2, 3, 3);
 
     /* Initialize required hardware + interrupts */
     initpendSV();
-    initSYSTICK();
+    UART0_Init();           // Initialize UART0
+    InterruptEnable(INT_VEC_UART0);       // Enable UART0 interrupts
+    UART0_IntEnable(UART_INT_RX | UART_INT_TX); // Enable Receive and Transmit interrupts
+    SysTickPeriod(TENTH_WAIT);
+    SysTickIntEnable();
 
     /* Trap to begin running processes */
     SVC();

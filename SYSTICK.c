@@ -8,42 +8,55 @@
  * @date    29-Oct-2019 (created)
  * @date    1-Nov-2019 (edited)
  */
-#include "SYSTICK.h"
 #define GLOBAL_SYSTICK
-/* Register Addresses */
-#define REG_ST_CTL    (*((volatile unsigned long *)0xE000E010))
-#define REG_ST_RELOAD (*((volatile unsigned long *)0xE000E014))
-
-/* Control/Status Bit Locations */
-#define ST_CTL_COUNT      (0x00010000UL)
-#define ST_CTL_CLK_SRC    (0x00000004UL)
-#define ST_CTL_INTEN      (0x00000002UL)
-#define ST_CTL_ENABLE     (0x00000001UL)
-
-/* SYSTICK Reload period: 16 777 777 / 100 = 167 777 */
-#define ST_RELOAD_PERIOD  (0x00028F61UL)
+#include "SYSTICK.h"
 
 /* Macro used to request a pendSV call */
 #define CALLPENDSV (*((volatile unsigned long *)0xE000ED04) |= 0x10000000UL)
 
 /*
- * @brief   Initializes the SYSTICK timer and configures its interrupt.
- *          The SYSTICK timer will begin operation and cause interrupts
- *          as soon as this function is finished.
- *
+ * @brief   Set the clock source to internal and enable the counter to interrupt
  */
-void initSYSTICK(void)
+void SysTickStart(void)
 {
-    /* Set interrupt period to every 1/10 of a second */
-    REG_ST_RELOAD = ST_RELOAD_PERIOD;
+ST_CTRL_R |= ST_CTRL_CLK_SRC | ST_CTRL_ENABLE;
+}
 
-    /* Set counter enable and internal clock source bits in control register */
-    REG_ST_CTL |= ST_CTL_CLK_SRC | ST_CTL_ENABLE;
+/*
+ * @brief   Clear the enable bit to stop the counter
+ */
+void SysTickStop(void)
+{
+ST_CTRL_R &= ~(ST_CTRL_ENABLE);
+}
 
-    /* Enable SysTick counter interrupts */
-    REG_ST_CTL |= ST_CTL_INTEN;
+/*
+ * @brief   Set interrupt period
+ */
+void SysTickPeriod(unsigned long Period)
+{
+/*
+ For an interrupt, must be between 2 and 16777216 (0x100.0000 or 2^24)
+*/
+ST_RELOAD_R = Period - 1;  /* 1 to 0xff.ffff */
+}
 
-    return;
+/*
+ * @brief   Enable Systick interrupts
+ */
+void SysTickIntEnable(void)
+{
+// Set the interrupt bit in STCTRL
+ST_CTRL_R |= ST_CTRL_INTEN;
+}
+
+/*
+ * @brief   disable Systick interrupts
+ */
+void SysTickIntDisable(void)
+{
+// Clear the interrupt bit in STCTRL
+ST_CTRL_R &= ~(ST_CTRL_INTEN);
 }
 
 /*

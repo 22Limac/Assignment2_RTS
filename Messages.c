@@ -6,8 +6,41 @@
  * @date    29-Oct-2019 (created)
  * @date    4-Nov-2019 (edited)
  */
+
 #define GLOBAL_MESSAGES
 #include "Messages.h"
+#include "SVC.h"
+#include "Process.h"
+#include "KernelCall.h"
+#include "Utilities.h"
+static Message * messagePool = NULL;
+/* Message Queues */
+static MailBox mailboxList[MAILBOX_AMOUNT];
+
+void addToPool(Message * newMsg)
+{
+    newMsg->next = messagePool;
+    messagePool = newMsg;
+}
+
+Message * retrieveFromPool(Message * newPtr)
+{
+    newPtr = messagePool;
+    messagePool = newPtr->next;
+    return newPtr;
+}
+
+void initMessagePool(void)
+{
+    int i;
+    for(i=0;i<MESSAGE_SYS_LIMIT;i++)
+    {
+        addToPool(malloc(sizeof(Message)));
+    }
+}
+
+
+
 
 
 /*
@@ -15,24 +48,46 @@
  * @param   [in] struct Message * msginfo: pointer to structure containing message information
  * @return  unsigned char: result of enqueueing, 0->success, 1->failure
  */
-unsigned char enqueueMessage(struct Message * msginfo)
+int kernelSend(int destinationMB, int fromMB, void * contents, int size)
 {
-    unsigned char result = 0U;
+   const PCB * runningPCB = getRunningPCB();
+   if((mailboxList[fromMB].owner != runningPCB)||
+      (!mailboxList[destinationMB].owner)||
+      (MESSAGE_SYS_LIMIT<size))
+   {return FAILURE;}
 
-    /* First check if queue is currently full */
-    if(Mailbox[msginfo->dest].size == MAX_QUEUE_SIZE)
-    {
-        /* Mailbox is currently full so adjust return value */
-        result = 1U;
-    }
-    else
-    {
-        /* Mailbox is not full so insert message */
-        Mailbox[msginfo->dest].array[Mailbox[msginfo->dest].bottom] = *msginfo;
-        Mailbox[msginfo->dest].bottom = (Mailbox[msginfo->dest].bottom + 1U) % MAX_QUEUE_SIZE;
-    }
+   if(mailboxList[destinationMB].owner->message)
+   { /* If the owner's PCB is blocked*/
+     *(mailboxList[destinationMB].owner->message->from.addr) = fromMB;
+     int copySize = (mailboxList[destinationMB].owner->message->size< size)?
+                     mailboxList[destinationMB].owner->message->size :
+                     size;
+      memcpy(mailboxList[destinationMB].owner->message->contents.value, contents, copySize);
+      addPCB(mailboxList[destinationMB].owner, mailboxList[destinationMB].owner->priority);
+      addToPool(mailboxList[destinationMB].owner->message);
+      *(mailboxList[destinationMB].owner->returnValue) = copySize;
+      mailboxList[destinationMB].owner->message = NULL;
 
-    return result;
+   }
+   else
+   {
+       Message * newMessage = NULL;
+       if(retrieveFromPool(newMessage))
+       {
+           newMessage->from.value = fromMB;
+           newMessage->size = size;
+           memcpy(newMessage->contents.value, contents, size);
+           if(mailboxList[destinationMB].head)
+           {
+               mailboxList[destinationMB].tail->next = newMessage;
+               mailboxList[destinationMB].tail = newMessage;
+           }
+           else
+           {mailboxList[destinationMB].head = mailboxList[destinationMB].tail = newMessage;}
+       }
+       else{ return FAILURE;}
+   }
+   return SUCCESS;
 }
 
 /*
@@ -42,22 +97,38 @@ unsigned char enqueueMessage(struct Message * msginfo)
  * @return  Message: message taken from mailbox. It points to NULL if
  *          desired queue is empty
  */
-struct Message dequeueMessage(unsigned char index)
+int kernelReceive(int bindedMB, int* returnMB, void * contents, int * maxSize)
 {
-    struct Message rtnmessage = {0, 0, 0, 0};
+    const PCB * runningPCB = getRunningPCB();
+    if((mailboxList[bindedMB].owner != runningPCB)||(MESSAGE_SYS_LIMIT<*maxSize))
+    {return FAILURE;}
 
-    /* First check if queue is currently empty */
-    if(Mailbox[index].size == 0U)
+    if(mailboxList[bindedMB].head)
     {
-        /* Mailbox is empty so leave result as is */
+        *returnMB = mailboxList[bindedMB].head->from.value;
+        int copySize = (mailboxList[bindedMB].head->size<*maxSize) ?
+                mailboxList[bindedMB].head->size :
+                *maxSize;
+        memcpy(contents, mailboxList[bindedMB].head->contents.value , copySize);
+        Message * temp = mailboxList[bindedMB].head;
+        mailboxList[bindedMB].head = mailboxList[bindedMB].head ->next;
+        addToPool(temp);
     }
     else
     {
-        /* Mailbox can be dequeued so obtain top entry */
-        rtnmessage = Mailbox[index].array[Mailbox[index].top];
-        Mailbox[index].top = (Mailbox[index].top + 1U) % MAX_QUEUE_SIZE;
-        Mailbox[index].size--;
-    }
+        Message * newMessage = NULL;
+        if(retrieveFromPool(newMessage))
+        {
+            removePCB();
+            newMessage->from.addr = returnMB;
+            newMessage->contents.addr = contents;
+            newMessage->size= *maxSize;
+            mailboxList[bindedMB].owner->message = newMessage;
+            mailboxList[bindedMB].owner->returnValue = maxSize;
 
-    return rtnmessage;
+            SETPENDSVPRIORITY;
+        }
+        else{ return FAILURE;}
+    }
+    return SUCCESS;
 }

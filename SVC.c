@@ -9,29 +9,36 @@
  * @date    20-Oct-2019 (created)
  * @date    7-Nov-2019 (edited)
  */
-#include <stdio.h>
-#include <stdlib.h>
 #define GLOBAL_SVC
 #include "SVC.h"
 #include "Process.h"
 #include "KernelCall.h"
 #include "Messages.h"
+#include "Utilities.h"
+#include "SYSTICK.h"
 
 #define HIGH_PRIORITY 4
 #define LOW_PRIORITY 0
+#define PRIORITY_LEVELS 5
 #define RUNNING waitingToRun[currentPriority]
+#define STACK_SIZE 512*sizeof(unsigned long)
+#define INIT_SP (512-16)*sizeof(unsigned long)
+#define THUMB_MODE 0x01000000
 static int currentPriority = 0;
 
 #define MAX_STACK_SIZE (512U)
 #define STARTING_PSR (0x01000000U)
 
 /* Macro used to set the priority of the pendSV interrupt */
-#define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
 
 extern void terminate(void);
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
 
+const PCB * getRunningPCB(void)
+{
+    return RUNNING;
+}
 /*
  * @brief   Allocates a new process stack frame and PCB
  *          for the process being registered.
@@ -48,14 +55,14 @@ static PCB * waitingToRun[PRIORITY_LEVELS];
  */
 int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
 {
-   /* TODO: First check that process ID has not already been taken */
-   unsigned long *processStack = (unsigned long *)malloc(MAX_STACK_SIZE*sizeof(unsigned long));
-   StackFrame *processSP = (StackFrame*) processStack;
-   processSP -> psr = STARTING_PSR;
-   processSP -> pc = (unsigned long)code;
-   processSP -> lr = (unsigned long)terminate;
+
+
 
    PCB * newProcess = (PCB*)malloc(sizeof(PCB));
+   newProcess->topOfStack = (unsigned long)malloc(STACK_SIZE);
+   StackFrame *processSP = (StackFrame*) (newProcess->topOfStack+(INIT_SP));
+   processSP -> psr = THUMB_MODE;
+   processSP -> pc = (unsigned long)code;
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
 
@@ -157,11 +164,13 @@ void initpendSV(void)
  */
 void pendSV(void)
 {
+    disable();
     save_registers();
     RUNNING -> sp = get_PSP();
     RUNNING = RUNNING -> next;
     set_PSP(RUNNING -> sp);
     restore_registers();
+    enable();
 }
 
 /*
@@ -207,71 +216,10 @@ __asm("     POP     {PC}");
 }
 
 
-/*
- * @brief   Kernel side of message sending operation
- * @param   [in] struct Message * msginfo:
- *          pointer to structure containing information required
- *          for message sending
- * @return  unsigned int: size of message received
- */
-unsigned int KernelSendMessage(struct Message * msginfo)
-{
-    /* Check whether destination queue's owner is currently blocked */
-    if(Mailbox[msginfo->dest].owner->message != NULL)
-    {
-        /* Recipient process is blocked so give information directly to process and unblock it */
-        //TODO: Limit number of copied bytes
-        memcpy(Mailbox[msginfo->dest].owner->message, msginfo->msgptr, msginfo->size);
-
-        /* Unblock recipient process */
-        addPCB(Mailbox[msginfo->dest].owner, Mailbox[msginfo->dest].owner->priority);
-    }
-    else
-    {
-        /* Recipient process is not currently looking for message so add it to destination
-         * queue and move on.
-         */
-        enqueueMessage(msginfo);
-    }
-//TODO: Must adjust return value in case of failure
-    return msginfo->size;
-}
 
 
-/*
- * @brief   Kernel side of message receiving operation
- * @param   [in] struct Message * msginfo:
- *          pointer to structure containing information required
- *          for message receipt
- * @return  unsigned int: size of message received
- */
-unsigned int KernelRecvMessage(struct Message * msginfo)
-{
-//TODO: Must check that queue in question is owned by currently
-//      running process
-    struct Message newMessage = dequeueMessage(msginfo->dest);
 
-    /* Check dequeue was successful */
-    if(newMessage.msgptr == NULL)
-    {
-        /* No message was found queued so block running process */
-        removePCB();
-    }
-    else
-    {
-        /* Copy message over to queue's owner */
-        //TODO: Limit number of copied bytes
-        memcpy(RUNNING->message->msgptr, newMessage.msgptr, newMessage.size);
-    }
 
-//TODO: Adjust return value for failures. right now this returns 0 upon failure
-    return newMessage.size;
-}
-
-/*
- * @brief   Handler of service calls.
- *          Carries out the requested kernel operation (e.g. getID, nice, etc.)
- */
 void SVCHandler(StackFrame *argptr)
 {
 /*
@@ -290,8 +238,10 @@ void SVCHandler(StackFrame *argptr)
    Handler mode and uses the MSP
  */
 static int firstSVCcall = TRUE;
-struct kCallArgs *kcaptr;
+KernelArgs *kcaptr;
 PCB * callerPCB;
+SendMessage * sendMsg;
+ReceiveMessage * recvMsg;
 
 //TODO: Must disable any and all interrupts here; primarily SYSTICK interrupts
 
@@ -309,6 +259,9 @@ if (firstSVCcall)
    should be increased by 8 * sizeof(unsigned int).
  * sp is increased because the stack runs from low to high memory.
 */
+    SysTickStart();
+    enable();     // Enable Master (CPU) Interrupts
+
     set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));
 
     firstSVCcall = FALSE;
@@ -335,32 +288,41 @@ else /* Subsequent SVCs */
    assigning the value of R7 (arptr -> r7) to kcaptr
  */
 
-    kcaptr = (struct kCallArgs *) argptr -> r7;
+    kcaptr = (KernelArgs *) argptr -> r7;
     switch(kcaptr -> code)
     {
     case GETID:
         kcaptr -> rtnvalue = RUNNING -> pid;
     break;
     case NICE:
-       callerPCB = RUNNING;
-       kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
-       /* Here, RUNNING has been changed to the PCB of the process that is to be
-        * run next. If RUNNING does not point to the process that requested a nice()
-        * then a context switch is required. Note that no registers are pushed/pulled
-        * because the caller's registers have been pushed prior to arriving here and
-        * the new RUNNING's registers will be pulled once this service call is concluded.
-        */
-       if(RUNNING != callerPCB)
-       {
-           callerPCB -> sp = get_PSP();
-           set_PSP(RUNNING -> sp);
-       }
+        callerPCB = RUNNING;
+        kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
+              /* Here, RUNNING has been changed to the PCB of the process that is to be
+               * run next. If RUNNING does not point to the process that requested a nice()
+               * then a context switch is required. Note that no registers are pushed/pulled
+               * because the caller's registers have been pushed prior to arriving here and
+               * the new RUNNING's registers will be pulled once this service call is concluded.
+               */
+        if(RUNNING != callerPCB)
+        {
+            callerPCB -> sp = get_PSP();
+            set_PSP(RUNNING -> sp);
+        }
     break;
     case SENDMSG:
-        kcaptr -> rtnvalue = KernelSendMessage((struct Message *)kcaptr->arg1);
+        sendMsg = (SendMessage *)kcaptr ->arg1;
+        kcaptr ->rtnvalue =
+                kernelSend(sendMsg->destinationMB,sendMsg->fromMB,
+                           sendMsg->contents, sendMsg->size);
     break;
     case RECEIVEMSG:
-        kcaptr -> rtnvalue = KernelRecvMessage((struct Message *)kcaptr->arg1);
+        recvMsg = (ReceiveMessage *)kcaptr ->arg1;
+        kcaptr->rtnvalue = recvMsg->maxSize;
+        if(kernelReceive(recvMsg->bindedMB,recvMsg->returnMB,
+                      recvMsg->contents, &(kcaptr->rtnvalue))<0)
+        {
+            kcaptr->rtnvalue = FAILURE;
+        }
     break;
     case TERMINATE:
         callerPCB = removePCB();
