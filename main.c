@@ -4,7 +4,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    4-Nov-2019 (edited)
+ * @date    7-Nov-2019 (edited)
  */
 
 #include "SVC.h"
@@ -31,6 +31,7 @@ void idleProcess(void)
 
 /*
  * @brief   definition of process used to test priority management
+ *          downgrades itself to priority 3
  */
 void Priority4Process1(void)
 {
@@ -48,13 +49,30 @@ void Priority4Process1(void)
 
 
 /*
- * @brief   definition of process used to test priority management
+ * @brief   definition of process used to test process termination
+ *          terminates after a while
  */
 void Priority4Process2(void)
 {
     unsigned int counter = 0U;
 
     while(counter < 100U)
+    {
+        counter++;
+    }
+
+    return;
+}
+
+
+/*
+ * @brief   definition of process used to test priority management
+ */
+void Priority4Process3(void)
+{
+    unsigned int counter = 0U;
+
+    while(1)
     {
         counter++;
     }
@@ -91,7 +109,7 @@ void UARTProcess(void)
 
 /*
  * @brief   registers processes.
- *          Sets idleProcess as Running
+ *          Sets highest priority process as Running
  *          traps kernel with service call
  *
  * */
@@ -103,6 +121,7 @@ int main(void)
     /* Register other test processes */
     registerProcess(Priority4Process1, 2U, 4U);
     registerProcess(Priority4Process2, 3U, 4U);
+    registerProcess(Priority4Process3, 4U, 4U);
 
     /* Initialize required hardware + interrupts */
     initpendSV();

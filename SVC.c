@@ -22,6 +22,9 @@
 #define RUNNING waitingToRun[currentPriority]
 static int currentPriority = 0;
 
+#define MAX_STACK_SIZE (512U)
+#define STARTING_PSR (0x01000000U)
+
 /* Macro used to set the priority of the pendSV interrupt */
 #define SETPENDSVPRIORITY ((*(volatile unsigned long *)0xE000ED20) |= 0x00E00000UL)
 
@@ -38,16 +41,17 @@ static PCB * waitingToRun[PRIORITY_LEVELS];
  * @param   [in] void (*code)(void): pointer to the start of the process code
  *          [in] unsigned int pid: Process ID of process being registered
  *          [in] unsigned char priority: Process' initial priority
- * @return  int: **Not really sure how a process would fail registration
- *                 but thats what it's for**
+ * @return  int: if sucessful, will return 0. Otherwise, return 1, in this case
+ *               the desired process will not be registered and the program will
+ *               continue to run.
  *
  */
 int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
 {
-
-   unsigned long *processStack = (unsigned long *)malloc(512*sizeof(unsigned long));
+   /* TODO: First check that process ID has not already been taken */
+   unsigned long *processStack = (unsigned long *)malloc(MAX_STACK_SIZE*sizeof(unsigned long));
    StackFrame *processSP = (StackFrame*) processStack;
-   processSP -> psr = 0x01000000;
+   processSP -> psr = STARTING_PSR;
    processSP -> pc = (unsigned long)code;
    processSP -> lr = (unsigned long)terminate;
 
@@ -71,49 +75,67 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
  * */
 int addPCB(PCB *newPCB, unsigned int newPriority)
 {
-
+    /* Must check whether desired queue is empty */
     if(waitingToRun[newPriority] != NULL)
     {
+        /* Must add process to tail of priority queue */
         newPCB->next = waitingToRun[newPriority];
         waitingToRun[newPriority] -> prev -> next = newPCB;
         waitingToRun[newPriority] -> prev = newPCB;
     }
     else
-    {   //first in queue
+    {   /* Desired queue is empty so the process becomes its only entry */
         waitingToRun[newPriority] = newPCB;
         waitingToRun[newPriority]->next = newPCB;
         waitingToRun[newPriority]->prev = newPCB;
     }
+
+    /* Set new priority of process and adjust current operating priority */
     newPCB->priority = newPriority;
     currentPriority = (currentPriority<newPriority)? newPriority: currentPriority;
     return currentPriority;
 }
 
+/*
+ * @brief   Function used to remove a process from a waiting to run queue
+ * @return  PCB *: Pointer to PCB of process removed from queue
+ */
 PCB * removePCB()
 {
     PCB * toRemove = RUNNING;
+
+    /* Check whether process is the queue's only entry */
     if (RUNNING == RUNNING -> next )
     {
+        /* This waiting to run queue is now empty so
+         * must move to the next highest priority.
+         */
         RUNNING = NULL;
         decrementPriority();
     }
     else
     {
+        /* There are other entries in this queue so make adjacent PCBs point
+         * to each other and advance running process pointer.
+         */
         RUNNING -> next -> prev = RUNNING -> prev;
         RUNNING -> prev -> next = RUNNING ->next;
         RUNNING = RUNNING -> next;
     }
-    //TODO: Must carry out a context switch here
+
     return toRemove;
 }
 
+/*
+ * @brief   Decrements operating priority until a non-empty queue is found
+ */
 void decrementPriority(void)
 {
-    do
+    /* Decrement operating priority if current waiting to run queue is empty */
+    while((RUNNING == NULL) && (currentPriority >= 0))
     {
         currentPriority--;
     }
-    while(!(RUNNING)&& (currentPriority > 0));
 }
 
 /*
@@ -142,6 +164,9 @@ void pendSV(void)
     restore_registers();
 }
 
+/*
+ * @brief   Entry point of SVC routine
+ */
 void SVCall(void)
 {
 /* Supervisor call (trap) entry point
@@ -243,6 +268,10 @@ unsigned int KernelRecvMessage(struct Message * msginfo)
     return newMessage.size;
 }
 
+/*
+ * @brief   Handler of service calls.
+ *          Carries out the requested kernel operation (e.g. getID, nice, etc.)
+ */
 void SVCHandler(StackFrame *argptr)
 {
 /*
@@ -310,7 +339,7 @@ else /* Subsequent SVCs */
     switch(kcaptr -> code)
     {
     case GETID:
-        kcaptr -> rtnvalue = RUNNING ->pid;
+        kcaptr -> rtnvalue = RUNNING -> pid;
     break;
     case NICE:
        callerPCB = RUNNING;
