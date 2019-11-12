@@ -7,7 +7,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    7-Nov-2019 (edited)
+ * @date    12-Nov-2019 (edited)
  */
 #define GLOBAL_SVC
 #include "SVC.h"
@@ -55,14 +55,12 @@ const PCB * getRunningPCB(void)
  */
 int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
 {
-
-
-
    PCB * newProcess = (PCB*)malloc(sizeof(PCB));
    newProcess->topOfStack = (unsigned long)malloc(STACK_SIZE);
    StackFrame *processSP = (StackFrame*) (newProcess->topOfStack+(INIT_SP));
    processSP -> psr = THUMB_MODE;
    processSP -> pc = (unsigned long)code;
+   processSP -> lr = (unsigned long)terminate;
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
 
@@ -99,7 +97,7 @@ int addPCB(PCB *newPCB, unsigned int newPriority)
 
     /* Set new priority of process and adjust current operating priority */
     newPCB->priority = newPriority;
-    currentPriority = (currentPriority<newPriority)? newPriority: currentPriority;
+    currentPriority = (currentPriority < newPriority)? newPriority: currentPriority;
     return currentPriority;
 }
 
@@ -143,6 +141,8 @@ void decrementPriority(void)
     {
         currentPriority--;
     }
+
+    return;
 }
 
 /*
@@ -219,13 +219,14 @@ __asm("     POP     {PC}");
 
 
 
-
+/*
+ * @brief   Supervisor call handler
+ *          Handle startup of initial process
+ *          Handle all other SVCs such as getid, terminate, etc.
+ */
 void SVCHandler(StackFrame *argptr)
 {
 /*
- * Supervisor call handler
- * Handle startup of initial process
- * Handle all other SVCs such as getid, terminate, etc.
  * Assumes first call is from startup code
  * Argptr points to (i.e., has the value of) either:
    - the top of the MSP stack (startup initial process)
@@ -242,8 +243,6 @@ KernelArgs *kcaptr;
 PCB * callerPCB;
 SendMessage * sendMsg;
 ReceiveMessage * recvMsg;
-
-//TODO: Must disable any and all interrupts here; primarily SYSTICK interrupts
 
 if (firstSVCcall)
 {
@@ -297,17 +296,20 @@ else /* Subsequent SVCs */
     case NICE:
         callerPCB = RUNNING;
         kcaptr -> rtnvalue = addPCB(removePCB(),kcaptr->arg1);
-              /* Here, RUNNING has been changed to the PCB of the process that is to be
-               * run next. If RUNNING does not point to the process that requested a nice()
-               * then a context switch is required. Note that no registers are pushed/pulled
-               * because the caller's registers have been pushed prior to arriving here and
-               * the new RUNNING's registers will be pulled once this service call is concluded.
-               */
+        /* Here, RUNNING has been changed to the PCB of the process that is to be
+         * run next. If RUNNING does not point to the process that requested a nice()
+         * then a context switch is required. Note that no registers are pushed/pulled
+         * because the caller's registers have been pushed prior to arriving here and
+         * the new RUNNING's registers will be pulled once this service call is concluded.
+         */
         if(RUNNING != callerPCB)
         {
             callerPCB -> sp = get_PSP();
             set_PSP(RUNNING -> sp);
         }
+
+        /* Set the returned value to be the ending priority of the calling process */
+        kcaptr -> rtnvalue = callerPCB->priority;
     break;
     case SENDMSG:
         sendMsg = (SendMessage *)kcaptr ->arg1;
@@ -319,7 +321,7 @@ else /* Subsequent SVCs */
         recvMsg = (ReceiveMessage *)kcaptr ->arg1;
         kcaptr->rtnvalue = recvMsg->maxSize;
         if(kernelReceive(recvMsg->bindedMB,recvMsg->returnMB,
-                      recvMsg->contents, &(kcaptr->rtnvalue))<0)
+                      recvMsg->contents, &(kcaptr->rtnvalue)) < 0)
         {
             kcaptr->rtnvalue = FAILURE;
         }
@@ -328,6 +330,10 @@ else /* Subsequent SVCs */
         callerPCB = removePCB();
         free(&(callerPCB->sp));
         free(callerPCB);
+        /* RUNNING must have changed here so the process stack pointer must be
+         * changed accordingly. No registers are pulled here since they will all
+         * be pulled once this service call is exited.
+         */
         set_PSP(RUNNING -> sp);
     break;
     default:

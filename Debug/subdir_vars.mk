@@ -15,6 +15,7 @@ C_SRCS += \
 ../SVC.c \
 ../SYSTICK.c \
 ../UART.c \
+../Utilities.c \
 ../main.c \
 ../tm4c1294ncpdt_startup_ccs.c 
 
@@ -25,6 +26,7 @@ C_DEPS += \
 ./SVC.d \
 ./SYSTICK.d \
 ./UART.d \
+./Utilities.d \
 ./main.d \
 ./tm4c1294ncpdt_startup_ccs.d 
 
@@ -35,6 +37,7 @@ OBJS += \
 ./SVC.obj \
 ./SYSTICK.obj \
 ./UART.obj \
+./Utilities.obj \
 ./main.obj \
 ./tm4c1294ncpdt_startup_ccs.obj 
 
@@ -45,6 +48,7 @@ OBJS__QUOTED += \
 "SVC.obj" \
 "SYSTICK.obj" \
 "UART.obj" \
+"Utilities.obj" \
 "main.obj" \
 "tm4c1294ncpdt_startup_ccs.obj" 
 
@@ -55,6 +59,7 @@ C_DEPS__QUOTED += \
 "SVC.d" \
 "SYSTICK.d" \
 "UART.d" \
+"Utilities.d" \
 "main.d" \
 "tm4c1294ncpdt_startup_ccs.d" 
 
@@ -65,6 +70,7 @@ C_SRCS__QUOTED += \
 "../SVC.c" \
 "../SYSTICK.c" \
 "../UART.c" \
+"../Utilities.c" \
 "../main.c" \
 "../tm4c1294ncpdt_startup_ccs.c" 
 

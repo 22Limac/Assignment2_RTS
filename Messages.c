@@ -40,9 +40,6 @@ void initMessagePool(void)
 }
 
 
-
-
-
 /*
  * @brief   Adds message to a message queue
  * @param   [in] struct Message * msginfo: pointer to structure containing message information

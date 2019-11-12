@@ -16,6 +16,7 @@ ORDERED_OBJS += \
 "./SVC.obj" \
 "./SYSTICK.obj" \
 "./UART.obj" \
+"./Utilities.obj" \
 "./main.obj" \
 "./tm4c1294ncpdt_startup_ccs.obj" \
 "../tm4c1294ncpdt.cmd" \
@@ -161,8 +162,8 @@ LightWeightMessagingKernel.hex: $(EXE_OUTPUTS)
 # Other Targets
 clean:
 	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "KernelCall.obj" "Messages.obj" "Process.obj" "SVC.obj" "SYSTICK.obj" "UART.obj" "main.obj" "tm4c1294ncpdt_startup_ccs.obj" 
-	-$(RM) "KernelCall.d" "Messages.d" "Process.d" "SVC.d" "SYSTICK.d" "UART.d" "main.d" "tm4c1294ncpdt_startup_ccs.d" 
+	-$(RM) "KernelCall.obj" "Messages.obj" "Process.obj" "SVC.obj" "SYSTICK.obj" "UART.obj" "Utilities.obj" "main.obj" "tm4c1294ncpdt_startup_ccs.obj" 
+	-$(RM) "KernelCall.d" "Messages.d" "Process.d" "SVC.d" "SYSTICK.d" "UART.d" "Utilities.d" "main.d" "tm4c1294ncpdt_startup_ccs.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 

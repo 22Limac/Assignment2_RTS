@@ -4,7 +4,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    4-Nov-2019 (edited)
+ * @date    9-Nov-2019 (edited)
  */
 #include <stdio.h>
 #include "KernelCall.h"
@@ -54,6 +54,12 @@ void terminate()
     SVC();
 }
 
+/* @brief   Kernel call used to change a process' priority
+ * @param   [in] int newPriority: Desired new priority of running process
+ * @return  int: New priority of calling process. If this value is the same
+ *          as the process' priority from before this call, then the priority
+ *          change has failed.
+ */
 int nice(int newPriority)
 {
     volatile KernelArgs niceArgs; /* Volatile to actually reserve space on stack */
@@ -117,7 +123,7 @@ unsigned int recvMessage(int bindedMB, int * returnMB, void * contents, int maxS
     recvArgs.contents =contents;
     recvArgs.maxSize = maxSize;
 
-        return procKernelCall( RECEIVEMSG, &recvArgs);
+    return procKernelCall( RECEIVEMSG, &recvArgs);
 }
 
 

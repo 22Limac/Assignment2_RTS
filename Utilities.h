@@ -22,9 +22,6 @@
 #define     NULL        0
 #define     EMPTY       0       //Queue return values
 #define     FULL        0
-#define     COMMAND_PROMPT  "\n\r>"     //different prompts
-#define     INVALID_PROMPT  "\n\r?"
-#define     BACKSPACE       "\b \b"     //to replace the backspaced char with whitespace
 
 
 #ifndef     UTILITIES

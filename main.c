@@ -4,7 +4,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    7-Nov-2019 (edited)
+ * @date    12-Nov-2019 (edited)
  */
 
 #include "SVC.h"
@@ -46,7 +46,7 @@ void Priority4Process1(void)
 /*
  * @brief   definition of process used to test priority management
  */
-void Priority4Process3(void)
+void Priority4Process2(void)
 {
 
 
@@ -56,32 +56,6 @@ void Priority4Process3(void)
     }
 
 }
-
-/*
- * @brief   definition of a process used to set up and output
- *          to UART0
- */
-
-//void UARTProcess(void)
-//{
-////    unsigned char output;
-//
-//    // Initialize UART0
-//    UART0_Init();
-//    InterruptEnable(5);
-//
-//    // Loop indefinitely
-//    while(1)
-//    {
-////        for(output = '!'; output <= '~'; output++) //TODO: Magic characters
-////        {
-//            forceOutput('U');
-////            forceOutput('\n'); //TODO: Magic character
-////        }
-//    }
-//
-//    return;
-//}
 
 
 /*
@@ -105,7 +79,7 @@ int main(void)
     UART0_Init();           // Initialize UART0
     InterruptEnable(INT_VEC_UART0);       // Enable UART0 interrupts
     UART0_IntEnable(UART_INT_RX | UART_INT_TX); // Enable Receive and Transmit interrupts
-    SysTickPeriod(TENTH_WAIT);
+    SysTickPeriod(HUNDREDTH_WAIT);
     SysTickIntEnable();
 
     /* Trap to begin running processes */
