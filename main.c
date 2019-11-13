@@ -4,7 +4,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    12-Nov-2019 (edited)
+ * @date    13-Nov-2019 (edited)
  */
 
 #include "SVC.h"
@@ -34,12 +34,30 @@ void idleProcess(void)
  */
 void Priority4Process1(void)
 {
+    unsigned char i = 0U;
+    unsigned char priority = 0U;
 
-    while(1)
+    for(i = 0; i < 255U; i++)
     {
         forceOutput('Z');
     }
 
+    priority = nice(2);
+    priority = nice(6);
+
+    for(i = 0; i < 50U; i++)
+    {
+        forceOutput(priority + '0');
+    }
+
+    nice(4);
+
+    for(i = 0; i < 50U; i++)
+    {
+        forceOutput('z');
+    }
+
+    return;
 }
 
 
@@ -48,13 +66,21 @@ void Priority4Process1(void)
  */
 void Priority4Process2(void)
 {
+    unsigned char i = 0;
 
+    for(i = 0; i < 255U; i++)
+    {
+        forceOutput('Y');
+    }
+
+    nice(2);
 
     while(1)
     {
-        forceOutput('U');
+        forceOutput('y');
     }
 
+    return;
 }
 
 
@@ -67,12 +93,18 @@ void Priority4Process2(void)
 int main(void)
 {
     initMessagePool();
+
+    int registerResult = 0;
+
     /* Register idle process first */
-    registerProcess(idleProcess, 1U, 0U);
+    registerResult = registerProcess(idleProcess, 1, 0);
 
     /* Register other test processes */
-    registerProcess(Priority4Process1, 2, 3);
-    registerProcess(Priority4Process2, 3, 3);
+    registerResult = registerProcess(Priority4Process1, 1, 4);
+    registerResult = registerProcess(Priority4Process1, 2, 43);
+    registerResult = registerProcess(Priority4Process1, 2, 4);
+    registerResult = registerProcess(Priority4Process2, 3, 4);
+    registerResult = registerProcess(Priority4Process2, 4, 4);
 
     /* Initialize required hardware + interrupts */
     initpendSV();

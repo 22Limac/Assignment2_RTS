@@ -6,7 +6,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    4-Nov-2019 (edited)
+ * @date    13-Nov-2019 (edited)
  */
 
 #ifndef PROCESS_H_
@@ -73,7 +73,8 @@ typedef struct ProcessControlBlock_
 /* Stack pointer - r13 (PSP) */
 unsigned long sp;
 unsigned long topOfStack;
-unsigned long pid;
+/* Process ID number */
+unsigned int pid;
 /* Links to adjacent PCBs */
 struct ProcessControlBlock_ *next;
 struct ProcessControlBlock_ *prev;

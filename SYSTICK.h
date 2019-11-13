@@ -6,7 +6,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    9-Nov-2019 (edited)
+ * @date    13-Nov-2019 (edited)
  */
 
 #pragma once
@@ -23,7 +23,7 @@
 
 // Maximum period
 #define MAX_WAIT           0x1000000   /* 2^24 */
-#define HUNDREDTH_WAIT     0x28F5C //(2^24)/100
+#define HUNDREDTH_WAIT     0x27100 //(2^24)/100
 
 #ifndef GLOBAL_SYSTICK
 #define GLOBAL_SYSTICK

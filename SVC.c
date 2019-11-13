@@ -7,7 +7,7 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    12-Nov-2019 (edited)
+ * @date    13-Nov-2019 (edited)
  */
 #define GLOBAL_SVC
 #include "SVC.h"
@@ -55,17 +55,51 @@ const PCB * getRunningPCB(void)
  */
 int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
 {
-   PCB * newProcess = (PCB*)malloc(sizeof(PCB));
-   newProcess->topOfStack = (unsigned long)malloc(STACK_SIZE);
-   StackFrame *processSP = (StackFrame*) (newProcess->topOfStack+(INIT_SP));
-   processSP -> psr = THUMB_MODE;
-   processSP -> pc = (unsigned long)code;
-   processSP -> lr = (unsigned long)terminate;
-   newProcess -> sp = (unsigned long) processSP;
-   newProcess -> pid = pid;
+   int result = 0;
+   unsigned int i;
+   PCB * tempPCB;
 
-   addPCB(newProcess, priority);
-   return 1;
+   /* First must check to ensure the requested priority is valid */
+   if((priority >= LOW_PRIORITY) && (priority <= HIGH_PRIORITY))
+   {
+       /* Next, a check must be done to ensure that the requested PID is not currently in use */
+       for(i = LOW_PRIORITY; i <= HIGH_PRIORITY; i++)
+       {
+           /* Loop through each process of each priority level */
+           tempPCB = waitingToRun[i];
+           if(tempPCB != NULL)
+           {
+               do
+               {
+                   if(tempPCB->pid == pid)
+                   {
+                       /* The requested PID was found in use so kernel must reject this process */
+                       return 1;
+                   }
+                   tempPCB = tempPCB->next;
+               } while(tempPCB != waitingToRun[i]);
+           }
+       }
+
+       /* Requested priority is valid so continue with process registration */
+       PCB * newProcess = (PCB*)malloc(sizeof(PCB));
+       newProcess->topOfStack = (unsigned long)malloc(STACK_SIZE);
+       StackFrame *processSP = (StackFrame*) (newProcess->topOfStack+(INIT_SP));
+       processSP -> psr = THUMB_MODE;
+       processSP -> pc = (unsigned long)code;
+       processSP -> lr = (unsigned long)terminate;
+       newProcess -> sp = (unsigned long) processSP;
+       newProcess -> pid = pid;
+
+       addPCB(newProcess, priority);
+   }
+   else
+   {
+       /* Requested an invalid priority so must reject process */
+       result = 1;
+   }
+
+   return result;
 }
 
 /*
