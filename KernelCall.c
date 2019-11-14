@@ -1,26 +1,40 @@
 /*
  * @file    KernelCall.c
- * @brief
+ * @brief   Module contains process kernel calls
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    9-Nov-2019 (edited)
+ * @date    14-Nov-2019 (edited)
  */
 #include <stdio.h>
 #include "KernelCall.h"
 #include "Process.h"
 #include "Messages.h"
-
+/*
+ * @brief   Used to set R7, to point to Kernel Argument passed to SVC
+ * @param   [in] volatile unsigned long data: passes address of argument
+ *              structure
+ */
 void assignR7(volatile unsigned long data)
 {
     __asm("     mov     r7,r0");
 }
 
+/*
+ * @brief   called by messaging kernel calls to push their
+ *          special structures on the stack and trap the
+ *          kernel
+ * @param   [in] int code: enumeration of repective kernel call
+ *          [in/out] void* messageStruct: structure that contains
+ *          arguments needed for interprocess communication
+ * @return  int: returns status of operation for send
+ *               size of message for receive
+ */
 int procKernelCall(int code, void* messageStruct)
 {
     volatile KernelArgs argList;
     argList.code = code;
-    argList.arg1 = (unsigned long)&messageStruct;
+    argList.arg1 = (unsigned long)messageStruct;
     assignR7((unsigned long) &argList);
 
     SVC();
@@ -29,21 +43,67 @@ int procKernelCall(int code, void* messageStruct)
 
 }
 
-
-int getid()
+/*
+ * @brief   called to bind a process to a mailbox
+ * @param   [in] int desiredMB: # of MB the process wants
+ *          to bind to
+ * @return  int: returns the status of the operation
+ */
+int bind(int desiredMB)
 {
-volatile KernelArgs getIdArg; /* Volatile to actually reserve space on stack */
-getIdArg . code = GETID;
+    volatile KernelArgs bindArg; /* Volatile to actually reserve space on stack */
+    bindArg.code = BIND;
+    bindArg.arg1 = desiredMB;
 
-/* Assign address of getidarg to R7 */
-assignR7((unsigned long) &getIdArg);
+    assignR7((unsigned long) &bindArg);
 
-SVC();
+    SVC();
 
-return getIdArg.rtnvalue;
+    return bindArg.rtnvalue;
 }
 
-void terminate()
+/*
+ * @brief   called to unbind a process from a mailbox
+ * @param   [in] int releaseMB: # of MB to be released
+ * @return int: returns the status of the operation
+ */
+int unbind(int releaseMB)
+{
+    volatile KernelArgs unbindArg; /* Volatile to actually reserve space on stack */
+    unbindArg.code = UNBIND;
+    unbindArg.arg1 = releaseMB;
+
+    assignR7((unsigned long) &unbindArg);
+
+    SVC();
+
+    return unbindArg.rtnvalue;
+}
+
+/*
+ * @brief   Called from a process to retrieve it's PID
+ *          from kernel
+ * @return int: returns running process PID
+ */
+int getid(void)
+{
+    volatile KernelArgs getIdArg; /* Volatile to actually reserve space on stack */
+    getIdArg . code = GETID;
+
+    /* Assign address of getidarg to R7 */
+    assignR7((unsigned long) &getIdArg);
+
+    SVC();
+
+    return getIdArg.rtnvalue;
+}
+
+/*
+ * @brief   The address of this function is loaded into the processes
+ *          LR at initialization. This is called when a process is completed
+ *          for its' PCB and stack to be free'd
+ */
+void terminate(void)
 {
     volatile KernelArgs terminateArg; /* Volatile to actually reserve space on stack */
     terminateArg.code = TERMINATE;
@@ -54,8 +114,10 @@ void terminate()
     SVC();
 }
 
-/* @brief   Kernel call used to change a process' priority
- * @param   [in] int newPriority: Desired new priority of running process
+/*
+ * @brief   Process calls nice function to change its priority level
+ * @param   [in] int newPriority: the priority level the process is
+ *          changing to
  * @return  int: New priority of calling process. If this value is the same
  *          as the process' priority from before this call, then the priority
  *          change has failed.
@@ -82,15 +144,12 @@ int nice(int newPriority)
 
 
 /*
- * @brief   Invokes the kernel to send a message to a desired queue
- * @param   [in] unsigned char sourceQueue:
- *          index of queue from which message was sent
- * @param   [in] unsigned char destQueue:
- *          index of queue designated as the message's destination
- * @param   [in] void * msgptr:
- *          address of message in memory
- * @param   [in] unsigned int size:
- *          size of message to send in bytes
+ * @brief   Invokes the kernel to send a message to a desired Mailbox
+ * @param   [in] int destinationMB: MB # of the destination process
+ *          [in] int fromMB: MB # of the sending process
+ *          [in] void* contents: data to be sent
+ *          [in] int size: amount of data measured in bytes
+ * @return  int: 1->success, -1->failure
  */
 int sendMessage(int destinationMB, int fromMB, void * contents, int size)
 {
@@ -105,17 +164,17 @@ int sendMessage(int destinationMB, int fromMB, void * contents, int size)
 
 
 /*
- * @brief   Invokes the kernel to receive a message from a desired queue
- * @param   [in] unsigned char sourceQueue:
- *          index of queue from which message was sent
- * @param   [in] unsigned char destQueue:
- *          index of queue designated as the message's destination
- * @param   [in] void * msgptr:
- *          address of message in memory
- * @param   [in] unsigned int size:
- *          size of message to receive in bytes
+ * @brief   Invokes the kernel to receive a message from a MB that the running
+ *          process is binded to
+ * @param   [in] int bindedMB: MB # of the receiving process
+ *          [out] int* returnMB: MB # of the process that sent the message
+ *          [in/out] void* contents: address where data is stored
+ *          [in/out] int* maxSize: [in]maximum amount of bytes the process will take
+ *                                 [out] amount of bytes that were copied
+ * @return  int: -1->failure, 1->success
+ *
  */
-unsigned int recvMessage(int bindedMB, int * returnMB, void * contents, int maxSize)
+int recvMessage(int bindedMB, int * returnMB, void * contents, int maxSize)
 {
     ReceiveMessage recvArgs;
     recvArgs.bindedMB = bindedMB;

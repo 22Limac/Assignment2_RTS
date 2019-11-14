@@ -35,5 +35,4 @@
     extern void SysTickIntDisable(void);
     extern void SysTickHandler(void);
 
-
 #endif //GLOBAL_SYSTICK

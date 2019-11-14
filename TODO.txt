@@ -1,6 +1,7 @@
-nice() - Patrick
+nice() - Patrick *DONE*
 termination - Patrick
-Message send + receive - Liam
-UART - Liam
+Message send + receive - Liam *DONE*
+UART - Liam *DONE*
 getID
-
+BIND to any 
+receive from any

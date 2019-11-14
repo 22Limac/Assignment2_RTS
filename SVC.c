@@ -91,6 +91,7 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
        newProcess -> sp = (unsigned long) processSP;
        newProcess -> pid = pid;
 
+   newProcess ->message = NULL;
        addPCB(newProcess, priority);
    }
    else
@@ -292,7 +293,7 @@ if (firstSVCcall)
    should be increased by 8 * sizeof(unsigned int).
  * sp is increased because the stack runs from low to high memory.
 */
-    SysTickStart();
+//    SysTickStart();
     enable();     // Enable Master (CPU) Interrupts
 
     set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));
@@ -369,6 +370,12 @@ else /* Subsequent SVCs */
          * be pulled once this service call is exited.
          */
         set_PSP(RUNNING -> sp);
+    break;
+    case BIND:
+        kcaptr->rtnvalue= kernelBind( kcaptr->arg1);
+    break;
+    case UNBIND:
+        kcaptr->rtnvalue= kernelUnbind( kcaptr->arg1);
     break;
     default:
         kcaptr -> rtnvalue = -1;
