@@ -169,7 +169,7 @@ int sendMessage(int destinationMB, int fromMB, void * contents, int size)
  *          [in/out] int* maxSize: [in]maximum amount of bytes the process will take
  *                                 [out] amount of bytes that were copied
  * @return  int: -1->failure, 1->success
- */
+ *
  */
 int recvMessage(int bindedMB, int * returnMB, void * contents, int maxSize)
 {
