@@ -12,8 +12,8 @@
 #include "SYSTICK.h"
 #include "UART.h"
 #include "Messages.h"
+#include "KernelCall.h"
 
-extern int nice(int newPriority);
 
 int process = 0;
 /*
@@ -33,12 +33,16 @@ void idleProcess(void)
  */
 void Priority4Process1(void)
 {
+    int mailBox = 1;
+    bind(mailBox);
 
-    while(1)
-    {
-        forceOutput('Z');
-    }
+    nice(2);
+    char cont[]="hi 2";
+    int size = 4;
 
+    sendMessage(2, mailBox, cont, size);
+    nice(1);
+    unbind(mailBox);
 }
 
 
@@ -47,13 +51,18 @@ void Priority4Process1(void)
  */
 void Priority4Process2(void)
 {
+    int mailBox = 2;
+    bind(mailBox);
 
+    nice(2);
+    int size = 4;
+    char cont[4];
+    int rtnMailBox;
 
-    while(1)
-    {
-        forceOutput('U');
-    }
+    recvMessage(mailBox, &rtnMailBox, cont, size);
+    forceOutput(cont[0]);
 
+    unbind(mailBox);
 }
 
 /*

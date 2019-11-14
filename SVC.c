@@ -54,13 +54,14 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
 
    PCB * newProcess = (PCB*)malloc(sizeof(PCB));
    newProcess->topOfStack = (unsigned long)malloc(STACK_SIZE);
-   StackFrame *processSP = (StackFrame*) (newProcess->topOfStack+(INIT_SP));
+   StackFrame *processSP = (StackFrame*) ((newProcess->topOfStack)+(INIT_SP));
    processSP -> psr = THUMB_MODE;
+   processSP ->lr = (unsigned long)&terminate;
    processSP -> pc = (unsigned long)code;
    newProcess -> sp = (unsigned long) processSP;
    newProcess -> pid = pid;
    newProcess -> priority = priority;
-
+   newProcess ->message = NULL;
    addPCB(newProcess, newProcess -> priority);
    return 1;
 }
@@ -90,7 +91,9 @@ int addPCB(PCB *newPCB, unsigned int newPriority)
         waitingToRun[newPriority]->next = newPCB;
         waitingToRun[newPriority]->prev = newPCB;
     }
-    currentPriority = (currentPriority<newPriority)? newPriority: currentPriority;
+    currentPriority= (currentPriority<newPriority)?
+            newPriority : currentPriority;
+
     return currentPriority;
 }
 
@@ -106,9 +109,9 @@ PCB * removePCB()
     {
         RUNNING -> next -> prev = RUNNING -> prev;
         RUNNING -> prev -> next = RUNNING ->next;
-//        RUNNING = RUNNING -> next;
+        RUNNING = RUNNING -> next;
     }
-    //TODO: Must carry out a context switch here
+
     return toRemove;
 }
 
@@ -232,7 +235,7 @@ if (firstSVCcall)
    should be increased by 8 * sizeof(unsigned int).
  * sp is increased because the stack runs from low to high memory.
 */
-    SysTickStart();
+//    SysTickStart();
     enable();     // Enable Master (CPU) Interrupts
 
     set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));
@@ -302,6 +305,12 @@ else /* Subsequent SVCs */
         free(&(callerPCB->sp));
         free(callerPCB);
         set_PSP(RUNNING -> sp);
+    break;
+    case BIND:
+        kcaptr->rtnvalue= kernelBind( kcaptr->arg1);
+    break;
+    case UNBIND:
+        kcaptr->rtnvalue= kernelUnbind( kcaptr->arg1);
     break;
     default:
         kcaptr -> rtnvalue = -1;

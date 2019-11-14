@@ -29,5 +29,4 @@ void initpendSV(void);
 void SVCall(void);
 void SVCHandler(StackFrame*);
 
-
 #endif /* GLOBAL_SVC */

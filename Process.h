@@ -8,9 +8,8 @@
  * @date    20-Oct-2019 (created)
  * @date    4-Nov-2019 (edited)
  */
+#pragma once
 
-#ifndef PROCESS_H_
-#define PROCESS_H_
 #include "Messages.h"
 
 #define TRUE    1
@@ -22,21 +21,9 @@
 #define SVC()   __asm(" SVC #0")
 #define disable()   __asm(" cpsid i")
 #define enable()    __asm(" cpsie i")
-
+#define STACKSIZE   1024
 #define MSP_RETURN 0xFFFFFFF9    //LR value: exception return using MSP as SP
 #define PSP_RETURN 0xFFFFFFFD    //LR value: exception return using PSP as SP
-
-void set_LR(volatile unsigned long);
-unsigned long get_PSP();
-void set_PSP(volatile unsigned long);
-unsigned long get_MSP(void);
-void set_MSP(volatile unsigned long);
-unsigned long get_SP();
-
-void volatile save_registers();
-void volatile restore_registers();
-
-#define STACKSIZE   1024
 
 /* Cortex default stack frame */
 
@@ -84,4 +71,19 @@ int * returnValue;
 struct Message_ * message;
 } PCB;
 
-#endif /* PROCESS_H_ */
+
+#ifndef GLOBAL_KERNELCALL
+#define GLOBAL_KERNELCALL
+
+extern void set_LR(volatile unsigned long);
+extern unsigned long get_PSP();
+extern void set_PSP(volatile unsigned long);
+extern unsigned long get_MSP(void);
+extern void set_MSP(volatile unsigned long);
+extern unsigned long get_SP();
+extern void volatile save_registers();
+extern void volatile restore_registers();
+
+#else
+
+#endif

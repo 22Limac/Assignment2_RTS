@@ -11,34 +11,22 @@
 #include "Process.h"
 /* Maximum number of message queues allowed */
 #define MAILBOX_AMOUNT 16
+#define MAILBOX_MAX_INDEX MAILBOX_AMOUNT - 1
 #define MESSAGE_SYS_LIMIT 32
-
-
-typedef union FromMB_
-{
-    int value;
-    int* addr;
-}FromMB;
-
-typedef union Contents_
-{
-    char value[MESSAGE_SYS_LIMIT];
-    char* addr;
-}Contents;
 
 /* Structure containing information about messages */
 typedef struct Message_
 {
 
     /* ID of destination process */
-    FromMB from;
+    int from;
 
     /*Next pointer for linked list*/
     struct Message_* next;
     /* Size in bytes of message */
     int size;
 
-    Contents contents;
+    char contents[MESSAGE_SYS_LIMIT];
 }Message;
 
 
@@ -55,21 +43,20 @@ typedef struct MailBox_
 
 }MailBox;
 
-
-
-
 #ifndef GLOBAL_MESSAGES
 #define GLOBAL_MESSAGES
 
+extern int kernelBind(int);
+extern int kernelUnbind(int);
 extern int kernelSend(int,int,void *, int);
 extern int kernelReceive(int,int*,void*,int*);
-void initMessagePool(void);
+extern void initMessagePool(void);
 
 #else
 
 int kernelSend(int,int,void *, int);
 int kernelReceive(int,int*,void*,int*);
 void addToPool(Message *);
-Message * retrieveFromPool(Message*);
+Message * retrieveFromPool(void);
 
 #endif /* GLOBAL_SVC */
