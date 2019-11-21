@@ -18,7 +18,7 @@ extern int registerProcess(void (*)(void), unsigned int, unsigned int);
 extern int addPCB(PCB *, unsigned int);
 extern PCB * removePCB(void);
 extern void initpendSV(void);
-extern const PCB * getRunningPCB(void);
+extern PCB * getRunningPCB(void);
 
 #else
 

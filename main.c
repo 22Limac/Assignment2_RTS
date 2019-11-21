@@ -6,16 +6,16 @@
  * @date    20-Oct-2019 (created)
  * @date    13-Nov-2019 (edited)
  */
-
+#include <string.h>
+#include "Utilities.h"
+#include "KernelCall.h"
 #include "SVC.h"
 #include "Process.h"
 #include "SYSTICK.h"
 #include "UART.h"
 #include "Messages.h"
-#include "KernelCall.h"
 
 
-int process = 0;
 /*
  * @brief   definition of idleProcess; the first process registered
  *          by the kernel. It must always idle and will only be run
@@ -24,6 +24,7 @@ int process = 0;
 void idleProcess(void)
 {
     /* Loop indefinitely */
+
     while(1);
 
 }
@@ -34,16 +35,61 @@ void idleProcess(void)
  */
 void Priority4Process1(void)
 {
-    int mailBox = 1;
-    bind(mailBox);
+    int mailBox = bind(ANY);
+    printWarning(mailBox);
+
+    int myID =getid();
+    char idString[POSITION_DIGITS];
+    formatLineNumber(myID, idString);
+    printToLine(myID);
+    printString("From PID:");
+    printSequence(RED_TEXT);
+    printString(idString);
+    printSequence(CLEAR_MODE);
+    printString(" | ");
 
     nice(2);
-    char cont[]="hi 2";
-    int size = 4;
+    char cont[9];
+    int size = 9;
+    int toMB = 2;
 
-    sendMessage(2, mailBox, cont, size);
-    nice(1);
-    unbind(mailBox);
+    int i =0;
+    while(i<5)
+    {
+        strcpy(cont," *hi 2*\0");
+
+        printWarning
+        (
+                sendMessage(toMB, mailBox, cont, size)
+        );
+
+        printWarning
+        (
+                recvMessage(mailBox, &toMB, cont, size)
+        );
+
+        printToLine(myID);
+        printString(cont);
+        i++;
+    }
+
+    printWarning
+    (
+           unbind(mailBox)
+    );
+
+}
+void Priority3Process1(void)
+{
+    int myID =getid();
+    char idString[POSITION_DIGITS];
+    formatLineNumber(myID, idString);
+    printToLine(myID);
+    printString("From PID:");
+    printSequence(RED_TEXT);
+    printString(idString);
+    printSequence(CLEAR_MODE);
+    printString(" | ");
 }
 
 
@@ -53,17 +99,52 @@ void Priority4Process1(void)
 void Priority4Process2(void)
 {
     int mailBox = 2;
-    bind(mailBox);
+
+    printWarning
+    (
+            bind(mailBox)
+    );
+
+    int myID =getid();
+    char idString[POSITION_DIGITS];
+    formatLineNumber(myID, idString);
+    printToLine(myID);
+    printString("From PID:");
+    printSequence(RED_TEXT);
+    printString(idString);
+    printSequence(CLEAR_MODE);
+    printString(" | ");
+
 
     nice(2);
-    int size = 4;
-    char cont[4];
+    int size = 9;
+    char cont[9];
     int rtnMailBox;
 
-    recvMessage(mailBox, &rtnMailBox, cont, size);
-    forceOutput(cont[0]);
+    int i =0;
+    while(i<5)
+    {
+        printWarning
+        (
+                recvMessage(mailBox, &rtnMailBox, cont, size)
+        );
 
-    unbind(mailBox);
+        printToLine(myID);
+        printString(cont);
+        strcpy(cont," *hi 1*\0");
+
+        printWarning
+        (
+                sendMessage(rtnMailBox, mailBox, cont, size)
+        );
+
+        i++;
+    }
+
+    printWarning
+    (
+            unbind(mailBox)
+    );
 }
 
 
@@ -76,30 +157,34 @@ void Priority4Process2(void)
 int main(void)
 {
     initMessagePool();
+    initMailBoxList();
 
     int registerResult = 0;
 
     /* Register idle process first */
-    registerResult = registerProcess(idleProcess, 1, 0);
+    registerResult |= registerProcess(idleProcess, 1, 0);
 
     /* Register other test processes */
-    registerResult = registerProcess(Priority4Process1, 1, 4);
-    registerResult = registerProcess(Priority4Process1, 2, 43);
-    registerResult = registerProcess(Priority4Process1, 2, 4);
-    registerResult = registerProcess(Priority4Process2, 3, 4);
-    registerResult = registerProcess(Priority4Process2, 4, 4);
+    registerResult |= registerProcess(Priority4Process1, 10, 4);
+    registerResult |= registerProcess(Priority4Process2, 20, 4);
+//    registerResult = registerProcess(Priority3Process1, 10, 4);
 
+    if(!registerResult)
+    {
     /* Initialize required hardware + interrupts */
-    initpendSV();
-    UART0_Init();           // Initialize UART0
-    InterruptEnable(INT_VEC_UART0);       // Enable UART0 interrupts
-    UART0_IntEnable(UART_INT_RX | UART_INT_TX); // Enable Receive and Transmit interrupts
-    SysTickPeriod(HUNDREDTH_WAIT);
-    SysTickIntEnable();
+        initpendSV();
+        UART0_Init();           // Initialize UART0
+        InterruptEnable(INT_VEC_UART0);       // Enable UART0 interrupts
+        UART0_IntEnable(UART_INT_RX | UART_INT_TX); // Enable Receive and Transmit interrupts
+        SysTickPeriod(HUNDREDTH_WAIT);
+        SysTickIntEnable();
+        printSequence(CLEAR_SCREEN);
 
     /* Trap to begin running processes */
-    SVC();
-
+        SVC();
+    }
     /* Should never reach here but if we do just exit program */
+    printSequence(RED_TEXT);
+    printString("*INVALID PROCESS*");
 	return 0;
 }

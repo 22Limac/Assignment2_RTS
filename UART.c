@@ -10,12 +10,16 @@
 
 #define GLOBAL_UART
 #include "UART.h"
+#include "Utilities.h"
+#include "SVC.h"
 
 #define TRUE    1
 #define FALSE   0
 /*UART interrupt buffer */
 static char dataRegister;
 static int gotData = FALSE;
+
+
 
 int getDataRegister(char * data)
 {
@@ -106,6 +110,63 @@ void forceOutput(char data)
  *          if the the output queue isn't empty force
  *          next available data out
  */
+void printString(char* string)
+{
+    PCB* runningPCB = getRunningPCB();
+    while(*string)
+    {
+        forceOutput(*(string++));
+        runningPCB->xAxisCursorPosition++;
+    }
+}
+
+void printSequence(char* string)
+{
+    while(*string)
+    {
+        forceOutput(*(string++));
+    }
+}
+
+void printWarning(int returnValue)
+{
+    if(returnValue<NULL)
+    {
+        printSequence(RED_TEXT);
+        switch(returnValue)
+        {
+        case DEFAULT_FAIL:
+            printString("DEFAULT FAILURE");
+        break;
+        case SEND_FAIL:
+            printString("SEND FAILURE");
+        break;
+        case RECV_FAIL:
+            printString("RECEIVE FAILURE");
+        break;
+        case BIND_FAIL:
+            printString("BIND FAILURE");
+        break;
+        case UNBIND_FAIL:
+            printString("UNBIND FAILURE");
+        break;
+        }
+        printSequence(CLEAR_MODE);
+    }
+}
+
+void printToLine(int lineNumber)
+{
+    char printLine[POSITION_DIGITS];
+    char cursorPosition[POSITION_DIGITS];
+    PCB* runningPCB = getRunningPCB();
+
+    formatLineNumber(lineNumber, printLine);
+    formatLineNumber(runningPCB->xAxisCursorPosition, cursorPosition);
+    cursor formattedString = {ESC, '[',printLine[0] , printLine[1], ';', cursorPosition[0], cursorPosition[1], 'H',NUL};
+    printSequence((char*)&formattedString);
+
+}
 void UART0_IntHandler(void)
 {
 /*

@@ -35,7 +35,7 @@ extern void terminate(void);
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
 
-const PCB * getRunningPCB(void)
+PCB * getRunningPCB(void)
 {
     return RUNNING;
 }
@@ -91,7 +91,11 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
        newProcess -> sp = (unsigned long) processSP;
        newProcess -> pid = pid;
 
-   newProcess ->message = NULL;
+
+       newProcess->contents=NULL;
+       newProcess->size=NULL;
+       newProcess->from=NULL;
+       newProcess->xAxisCursorPosition=NULL;
        addPCB(newProcess, priority);
    }
    else
@@ -293,7 +297,7 @@ if (firstSVCcall)
    should be increased by 8 * sizeof(unsigned int).
  * sp is increased because the stack runs from low to high memory.
 */
-//    SysTickStart();
+    SysTickStart();
     enable();     // Enable Master (CPU) Interrupts
 
     set_PSP(RUNNING-> sp + 8 * sizeof(unsigned int));

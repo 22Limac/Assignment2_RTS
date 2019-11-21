@@ -40,6 +40,11 @@ typedef struct MailBox_
     /* Index of next empty slot in message queue */
     Message* tail;
 
+    struct MailBox_ * nextFree;
+
+    struct MailBox_ * prevFree;
+
+    int index;
 
 }MailBox;
 
@@ -51,6 +56,7 @@ extern int kernelUnbind(int);
 extern int kernelSend(int,int,void *, int);
 extern int kernelReceive(int,int*,void*,int*);
 extern void initMessagePool(void);
+extern void initMailBoxList(void);
 
 #else
 

@@ -57,6 +57,25 @@
 #define NVIC_EN0_R      (*((volatile unsigned long *)0xE000E100))   // Interrupt 0-31 Set Enable Register
 #define NVIC_EN1_R      (*((volatile unsigned long *)0xE000E104))   // Interrupt 32-54 Set Enable Register
 
+
+#define NUL 0x00
+#define ESC 0x1b
+
+/* Cursor position string */
+
+/* Define the cursor position data structure */
+
+typedef struct CUP
+{
+    char esc;
+    char sqrbrkt;
+    char line[2];   /* 01 through 24 */
+    char semicolon;
+    char col[2];    /* 01 through 80 */
+    char cmdchar;
+    char nul;
+}cursor;
+
 #ifndef GLOBAL_UART
 #define GLOBAL_UART
 
@@ -67,6 +86,11 @@
     extern void UART0_IntHandler(void);
     extern void forceOutput(char);
     extern char getDataRegister(void);
+    extern void printString(char*);
+    extern void printToLine(int);
+    extern void printSequence(char*);
+    extern void printWarning(int);
+
 
 #else
 

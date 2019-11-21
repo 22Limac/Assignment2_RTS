@@ -16,9 +16,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define  NEXT i+1
+#define  PREV i-1
+#define  STARTING_INDEX 0
 static Message * messagePool = NULL;
 /* Message Queues */
 static MailBox mailboxList[MAILBOX_AMOUNT];
+static MailBox * freeMailBox;
+
+/*
+ * @brief   Initializes the doubly linked list connecting unowned
+ *          mailboxs allowing bind any in constant time
+ */
+void initMailBoxList(void)
+{
+    int i = STARTING_INDEX;
+
+    mailboxList[i].index = i;
+
+    //initialize free to mailbox at starting index
+    freeMailBox = &mailboxList[i];
+
+    //first and last mailboxes must be initialized to point
+    //to eachother to give circular doubly linked list functionality
+
+    mailboxList[MAILBOX_MAX_INDEX].nextFree = &mailboxList[i];
+    mailboxList[i].prevFree = &mailboxList[MAILBOX_MAX_INDEX];
+    mailboxList[i].nextFree = &mailboxList[NEXT];
+    for(i; i<MAILBOX_MAX_INDEX;i++)
+    {
+        mailboxList[i].index = i;
+        mailboxList[i].nextFree = &mailboxList[NEXT];
+        mailboxList[i].prevFree = &mailboxList[PREV];
+    }
+    mailboxList[i].index = i;
+    mailboxList[i].prevFree = &mailboxList[PREV];
+}
 
 void addToPool(Message * newMsg)
 {
@@ -47,13 +80,37 @@ void initMessagePool(void)
 
 int kernelBind(int desiredMB)
 {
+    if(desiredMB == ANY)
+    {
+        if(freeMailBox)
+        {
+            desiredMB = freeMailBox->index;
+            freeMailBox->nextFree->prevFree=freeMailBox->prevFree;
+            freeMailBox->prevFree->nextFree=freeMailBox->nextFree;
+            freeMailBox = (freeMailBox->nextFree==freeMailBox)? NULL : freeMailBox->nextFree;
+
+            mailboxList[desiredMB].owner = (struct ProcessControlBlock_*)getRunningPCB();
+            mailboxList[desiredMB].head =mailboxList[desiredMB].tail = NULL;
+        }
+        else
+        {
+            desiredMB = BIND_FAIL;
+        }
+
+    }
+    else
+    {
         if(!(mailboxList[desiredMB].owner))
         {
             mailboxList[desiredMB].owner = (struct ProcessControlBlock_*)getRunningPCB();
             mailboxList[desiredMB].head =mailboxList[desiredMB].tail = NULL;
-            return desiredMB;
         }
-        return FAILURE;
+        else
+        {
+            desiredMB = BIND_FAIL;
+        }
+    }
+    return desiredMB;
 }
 
 int kernelUnbind(int releaseMB)
@@ -61,9 +118,13 @@ int kernelUnbind(int releaseMB)
     if(mailboxList[releaseMB].owner == getRunningPCB())
     {
         mailboxList[releaseMB].owner = NULL;
+        mailboxList[releaseMB].nextFree = freeMailBox;
+        mailboxList[releaseMB].prevFree = freeMailBox->prevFree;
+        freeMailBox->prevFree =  &mailboxList[releaseMB];
+        freeMailBox = &mailboxList[releaseMB];
         return SUCCESS;
     }
-    return FAILURE;
+    return UNBIND_FAIL;
 }
 
 /*
@@ -83,21 +144,19 @@ int kernelSend(int destinationMB, int fromMB, void * contents, int size)
    if((mailboxList[fromMB].owner != runningPCB)||
       (!(mailboxList[destinationMB].owner))||
       (MESSAGE_SYS_LIMIT<size))
-   {return FAILURE;}
+   {return SEND_FAIL;}
 
    //check if the destination process is blocked
-   if(mailboxList[destinationMB].owner->message)
+   if(mailboxList[destinationMB].owner->contents)
    { /* If the owner's PCB is blocked*/
-     mailboxList[destinationMB].owner->message->from = fromMB;
-     int copySize = (mailboxList[destinationMB].owner->message->size< size)?
-                     mailboxList[destinationMB].owner->message->size :
+     mailboxList[destinationMB].owner->from = fromMB;
+     int copySize = (mailboxList[destinationMB].owner->size< size)?
+                     mailboxList[destinationMB].owner->size :
                      size;
-      memcpy(mailboxList[destinationMB].owner->message->contents, contents, copySize);
+      memcpy(mailboxList[destinationMB].owner->contents, contents, copySize);
       addPCB(mailboxList[destinationMB].owner, mailboxList[destinationMB].owner->priority);
-      addToPool(mailboxList[destinationMB].owner->message);
       *(mailboxList[destinationMB].owner->returnValue) = copySize;
-      mailboxList[destinationMB].owner->message = NULL;
-
+      mailboxList[destinationMB].owner->contents = NULL;
    }
    else
    {
@@ -113,11 +172,16 @@ int kernelSend(int destinationMB, int fromMB, void * contents, int size)
            {
                mailboxList[destinationMB].tail->next = newMessage;
                mailboxList[destinationMB].tail = newMessage;
+               mailboxList[destinationMB].tail->next=NULL;
            }
            else//first message in mailbox
-           {mailboxList[destinationMB].head = mailboxList[destinationMB].tail = newMessage;}
+           {
+               mailboxList[destinationMB].head = mailboxList[destinationMB].tail = newMessage;
+               mailboxList[destinationMB].head->next=mailboxList[destinationMB].tail->next=NULL;
+
+           }
        }
-       else{ return FAILURE;}
+       else{ return SEND_FAIL;}
    }
    return SUCCESS;
 }
@@ -136,7 +200,7 @@ int kernelReceive(int bindedMB, int* returnMB, void * contents, int * maxSize)
 {
     PCB * runningPCB = (struct ProcessControlBlock_*) getRunningPCB();
     if((mailboxList[bindedMB].owner != runningPCB)||(MESSAGE_SYS_LIMIT<*maxSize))
-    {return FAILURE;}
+    {return RECV_FAIL;}
 
     if(mailboxList[bindedMB].head)
     {
@@ -154,22 +218,14 @@ int kernelReceive(int bindedMB, int* returnMB, void * contents, int * maxSize)
     else
     {
 // Mailbox empty; block
-
-        Message * newMessage = retrieveFromPool();
-        if(newMessage)// Message successfully retrieved from pool
-        {
-            removePCB();
-            returnMB = &newMessage->from;
-            contents = newMessage->contents;
-            newMessage->size= *maxSize;
-            mailboxList[bindedMB].owner->message = newMessage;
-            mailboxList[bindedMB].owner->returnValue = maxSize;
-            mailboxList[bindedMB].owner->sp = get_PSP();
-            runningPCB = (struct ProcessControlBlock_*) getRunningPCB();
-            set_PSP(runningPCB->sp);
-
-        }
-        else{ return FAILURE;}
+        removePCB();
+        returnMB = &mailboxList[bindedMB].owner->from;
+        mailboxList[bindedMB].owner->contents = contents;
+        mailboxList[bindedMB].owner->size= *maxSize;
+        mailboxList[bindedMB].owner->returnValue = maxSize;
+        mailboxList[bindedMB].owner->sp = get_PSP();
+        runningPCB = (struct ProcessControlBlock_*) getRunningPCB();
+        set_PSP(runningPCB->sp);
     }
     return SUCCESS;
 }

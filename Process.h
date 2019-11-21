@@ -69,7 +69,13 @@ struct ProcessControlBlock_ *prev;
 unsigned char priority;
 /* Pointer to message storing space */
 int * returnValue;
-struct Message_ * message;
+
+int xAxisCursorPosition;
+
+int from;
+int size;
+void* contents;
+
 } PCB;
 
 

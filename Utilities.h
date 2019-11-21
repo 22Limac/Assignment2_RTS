@@ -15,6 +15,10 @@
 #define     ENTER       0x0d //ASCII Characters
 #define     BS          0x08
 #define     NUL         0x00
+#define     CLEAR_SCREEN "\x1b[2J"
+#define     RED_TEXT   "\x1b[1;31m"
+#define     CLEAR_MODE  "\x1b[m"
+#define     POSITION_DIGITS 2
 #define     TRUE        1   // For using Integers as booleans
 #define     FALSE       0
 #define     SUCCESS     1   // To clarify returns values where possible
@@ -22,11 +26,18 @@
 #define     NULL        0
 #define     EMPTY       0       //Queue return values
 #define     FULL        0
+#define     ANY         16      //signals bind any
+#define     SEND_FAIL   -2
+#define     RECV_FAIL   -3
+#define     BIND_FAIL   -4
+#define     UNBIND_FAIL -5
+#define     DEFAULT_FAIL FAILURE
 
 
-#ifndef     UTILITIES
-#define     UTILITIES
+#ifndef     GLOBAL_UTILITIES
+#define     GLOBAL_UTILITIES
 
+extern void formatLineNumber(int,char*);
 
 #else
 

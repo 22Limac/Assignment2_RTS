@@ -11,15 +11,24 @@
 #pragma once
 
 enum kernelcallcodes {GETID, NICE, SENDMSG, RECEIVEMSG, TERMINATE, BIND, UNBIND};
-
+/*
+ * @brief   Kernel Argument Structure
+ * @details Holds all variables passed to kernel
+ *          for when an SVC call is made
+ */
 typedef struct KernelCallArgs_
 {
-    unsigned long code;
-    int rtnvalue;
-    unsigned long arg1;
+    unsigned long code;//kernel call code for SVC switch statement
+    int rtnvalue;//stores the return value from SVC
+    unsigned long arg1;//arguments to be passed
     unsigned long arg2;
 }KernelArgs;
 
+/*
+ * @brief   Send Kernel Call Arguments
+ * @details Holds all variables passed to kernel
+ *          for when a send message call is made
+ */
 typedef struct SendMessage_
 {
     int destinationMB;
@@ -28,6 +37,11 @@ typedef struct SendMessage_
     int size;
 }SendMessage;
 
+/*
+ * @brief   Receive Kernel Call Arguments
+ * @details Holds all variables passed to kernel
+ *          for when a  message is called
+ */
 typedef struct ReceiveMessage_
 {
     int bindedMB;
@@ -46,7 +60,5 @@ extern int nice(int);
 extern void terminate(void);
 extern int sendMessage(int, int, void *, int);
 extern int recvMessage(int, int*, void *, int);
-
-#else
 
 #endif

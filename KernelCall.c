@@ -4,9 +4,10 @@
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date    14-Nov-2019 (edited)
+ * @date    21-Nov-2019 (edited)
  */
 #include <stdio.h>
+#define GLOBAL_KERNELCALL
 #include "KernelCall.h"
 #include "Process.h"
 #include "Messages.h"
@@ -46,8 +47,8 @@ int procKernelCall(int code, void* messageStruct)
 /*
  * @brief   called to bind a process to a mailbox
  * @param   [in] int desiredMB: # of MB the process wants
- *          to bind to
- * @return  int: returns the status of the operation
+ *          to bind to; if equal to 16 its a bind any call
+ * @return  int: -4-> bind failure; 1 -> success
  */
 int bind(int desiredMB)
 {
@@ -65,7 +66,7 @@ int bind(int desiredMB)
 /*
  * @brief   called to unbind a process from a mailbox
  * @param   [in] int releaseMB: # of MB to be released
- * @return int: returns the status of the operation
+ * @return int: -5-> unbind failure; 1 -> success
  */
 int unbind(int releaseMB)
 {
@@ -149,7 +150,7 @@ int nice(int newPriority)
  *          [in] int fromMB: MB # of the sending process
  *          [in] void* contents: data to be sent
  *          [in] int size: amount of data measured in bytes
- * @return  int: 1->success, -1->failure
+ * @return  int:  -2->send failure; 1->success
  */
 int sendMessage(int destinationMB, int fromMB, void * contents, int size)
 {
@@ -171,7 +172,7 @@ int sendMessage(int destinationMB, int fromMB, void * contents, int size)
  *          [in/out] void* contents: address where data is stored
  *          [in/out] int* maxSize: [in]maximum amount of bytes the process will take
  *                                 [out] amount of bytes that were copied
- * @return  int: -1->failure, 1->success
+ * @return  int: -3->receive failure; 1->success
  *
  */
 int recvMessage(int bindedMB, int * returnMB, void * contents, int maxSize)
