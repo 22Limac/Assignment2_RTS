@@ -7,14 +7,13 @@
  * @date    13-Nov-2019 (edited)
  */
 #include <string.h>
+#include "UART.h"
 #include "Utilities.h"
 #include "KernelCall.h"
 #include "SVC.h"
 #include "Process.h"
 #include "SYSTICK.h"
-#include "UART.h"
 #include "Messages.h"
-
 
 /*
  * @brief   definition of idleProcess; the first process registered
@@ -25,128 +24,76 @@ void idleProcess(void)
 {
     /* Loop indefinitely */
 
-    while(1);
+    while (1)
+        ;
 
 }
 
-/*
- * @brief   definition of process used to test priority management
- *          downgrades itself to priority 3
- */
-void Priority4Process1(void)
+void Priority3Process10(void)
 {
     int mailBox = bind(ANY);
-    printWarning(mailBox);
-
-    int myID =getid();
+    int myID = getid();
+    char cursorPosition[CURSOR_STRING];
     char idString[POSITION_DIGITS];
+    getProcessCursor(myID,cursorPosition);
     formatLineNumber(myID, idString);
-    printToLine(myID);
-    printString("From PID:");
-    printSequence(RED_TEXT);
-    printString(idString);
-    printSequence(CLEAR_MODE);
-    printString(" | ");
-
-    nice(2);
-    char cont[9];
+    sendMessage(UART_MB, mailBox, cursorPosition, CURSOR_STRING);
+    sendMessage(UART_MB, mailBox, RED_TEXT, strlen(RED_TEXT) + 1);
+    sendMessage(UART_MB, mailBox, idString, POSITION_DIGITS + 1);
+    sendMessage(UART_MB, mailBox, CLEAR_MODE, strlen(CLEAR_MODE) + 1);
+    sendMessage(UART_MB, mailBox, "  ", 3);
+    int i = 0;
+    int toMB =3;
     int size = 9;
-    int toMB = 2;
-
-    int i =0;
-    while(i<5)
+    char cont[9];
+    nice(2);
+    nice(3);
+    while (i < 5)
     {
-        strcpy(cont," *hi 2*\0");
-
-        printWarning
-        (
-                sendMessage(toMB, mailBox, cont, size)
-        );
-
-        printWarning
-        (
-                recvMessage(mailBox, &toMB, cont, size)
-        );
-
-        printToLine(myID);
-        printString(cont);
+        strcpy(cont, " *hi 20*\0");
+        sendMessage(toMB, mailBox, cont, size);
+        recvMessage(mailBox, &toMB, cont, size);
+        getProcessCursor(myID,cursorPosition);
+        sendMessage(UART_MB, mailBox, cursorPosition, CURSOR_STRING);
+        sendMessage(UART_MB, mailBox, cont, size);
         i++;
     }
 
-    printWarning
-    (
-           unbind(mailBox)
-    );
-
-}
-void Priority3Process1(void)
-{
-    int myID =getid();
-    char idString[POSITION_DIGITS];
-    formatLineNumber(myID, idString);
-    printToLine(myID);
-    printString("From PID:");
-    printSequence(RED_TEXT);
-    printString(idString);
-    printSequence(CLEAR_MODE);
-    printString(" | ");
+    unbind(mailBox);
 }
 
-
-/*
- * @brief   definition of process used to test priority management
- */
-void Priority4Process2(void)
+void Priority3Process20(void)
 {
-    int mailBox = 2;
-
-    printWarning
-    (
-            bind(mailBox)
-    );
-
-    int myID =getid();
+    int mailBox = bind(3);
+    int myID = getid();
+    char cursorPosition[CURSOR_STRING];
     char idString[POSITION_DIGITS];
+    getProcessCursor(myID, cursorPosition);
     formatLineNumber(myID, idString);
-    printToLine(myID);
-    printString("From PID:");
-    printSequence(RED_TEXT);
-    printString(idString);
-    printSequence(CLEAR_MODE);
-    printString(" | ");
-
-
-    nice(2);
+    sendMessage(UART_MB, mailBox, cursorPosition, CURSOR_STRING);
+    sendMessage(UART_MB, mailBox, RED_TEXT, strlen(RED_TEXT) + 1);
+    sendMessage(UART_MB, mailBox, idString, POSITION_DIGITS + 1);
+    sendMessage(UART_MB, mailBox, CLEAR_MODE, strlen(CLEAR_MODE) + 1);
+    sendMessage(UART_MB, mailBox, "  ", 3);
+    int i=0;
+    int toMB;
     int size = 9;
     char cont[9];
-    int rtnMailBox;
 
-    int i =0;
-    while(i<5)
+    while (i < 5)
     {
-        printWarning
-        (
-                recvMessage(mailBox, &rtnMailBox, cont, size)
-        );
-
-        printToLine(myID);
-        printString(cont);
-        strcpy(cont," *hi 1*\0");
-
-        printWarning
-        (
-                sendMessage(rtnMailBox, mailBox, cont, size)
-        );
-
+        recvMessage(mailBox, &toMB, cont, size);
+        getProcessCursor(myID,cursorPosition);
+        sendMessage(UART_MB, mailBox, cursorPosition, CURSOR_STRING);
+        sendMessage(UART_MB, mailBox, cont, size);
+        strcpy(cont, " *hi 10*\0");
+        sendMessage(toMB, mailBox, cont, size);
         i++;
     }
 
-    printWarning
-    (
-            unbind(mailBox)
-    );
-}
+    unbind(mailBox);
 
+}
 
 /*
  * @brief   registers processes.
@@ -158,33 +105,36 @@ int main(void)
 {
     initMessagePool();
     initMailBoxList();
+    initReceiveLogs();
 
     int registerResult = 0;
 
     /* Register idle process first */
-    registerResult |= registerProcess(idleProcess, 1, 0);
+    registerResult |= registerProcess(idleProcess, 0, 0);
+    registerResult |= registerProcess(uartProcess, 1, 4);
 
     /* Register other test processes */
-    registerResult |= registerProcess(Priority4Process1, 10, 4);
-    registerResult |= registerProcess(Priority4Process2, 20, 4);
-//    registerResult = registerProcess(Priority3Process1, 10, 4);
+    registerResult |= registerProcess(Priority3Process10, 10, 3);
+    registerResult |= registerProcess(Priority3Process20, 20, 3);
 
-    if(!registerResult)
+
+    if (!registerResult)
     {
-    /* Initialize required hardware + interrupts */
+        /* Initialize required hardware + interrupts */
         initpendSV();
         UART0_Init();           // Initialize UART0
         InterruptEnable(INT_VEC_UART0);       // Enable UART0 interrupts
         UART0_IntEnable(UART_INT_RX | UART_INT_TX); // Enable Receive and Transmit interrupts
         SysTickPeriod(HUNDREDTH_WAIT);
         SysTickIntEnable();
-        printSequence(CLEAR_SCREEN);
-
-    /* Trap to begin running processes */
+        char *clearString = CLEAR_SCREEN;
+        while (*clearString)
+        {
+            forceOutput(*(clearString++));
+        }
+        /* Trap to begin running processes */
         SVC();
     }
-    /* Should never reach here but if we do just exit program */
-    printSequence(RED_TEXT);
-    printString("*INVALID PROCESS*");
-	return 0;
+
+    return 0;
 }

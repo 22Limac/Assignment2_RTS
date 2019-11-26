@@ -3,7 +3,8 @@
  * @brief   Contains Service Call (SVC) trap handling functionality.
  *          Declares waitingToRun queues and the running PCB pointer;
  *          contains initialization and manipulation for both.
- *          **not sure if registerProcess belongs here or Process.h**
+ *
+ * @author  Larry Hughes (original)
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
@@ -21,12 +22,12 @@
 #define LOW_PRIORITY 0
 #define PRIORITY_LEVELS 5
 #define RUNNING waitingToRun[currentPriority]
-#define STACK_SIZE 512*sizeof(unsigned long)
-#define INIT_SP (512-16)*sizeof(unsigned long)
+#define STACK_SIZE 1024*sizeof(unsigned long)
+#define INIT_SP (1024-16)*sizeof(unsigned long)
 #define THUMB_MODE 0x01000000
 static int currentPriority = 0;
 
-#define MAX_STACK_SIZE (512U)
+#define MAX_STACK_SIZE (1024U)
 #define STARTING_PSR (0x01000000U)
 
 /* Macro used to set the priority of the pendSV interrupt */
@@ -34,11 +35,16 @@ static int currentPriority = 0;
 extern void terminate(void);
 
 static PCB * waitingToRun[PRIORITY_LEVELS];
-
+/*
+ * @brief   returns PCB of running process
+ * @return  PCB *: address of running processes
+ *          PCB
+ * */
 PCB * getRunningPCB(void)
 {
     return RUNNING;
 }
+
 /*
  * @brief   Allocates a new process stack frame and PCB
  *          for the process being registered.
@@ -53,33 +59,13 @@ PCB * getRunningPCB(void)
  *               continue to run.
  *
  */
-int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority)
+int registerProcess(void (*code)(void), unsigned int pid, int priority)
 {
    int result = 0;
-   unsigned int i;
-   PCB * tempPCB;
 
    /* First must check to ensure the requested priority is valid */
    if((priority >= LOW_PRIORITY) && (priority <= HIGH_PRIORITY))
    {
-       /* Next, a check must be done to ensure that the requested PID is not currently in use */
-       for(i = LOW_PRIORITY; i <= HIGH_PRIORITY; i++)
-       {
-           /* Loop through each process of each priority level */
-           tempPCB = waitingToRun[i];
-           if(tempPCB != NULL)
-           {
-               do
-               {
-                   if(tempPCB->pid == pid)
-                   {
-                       /* The requested PID was found in use so kernel must reject this process */
-                       return 1;
-                   }
-                   tempPCB = tempPCB->next;
-               } while(tempPCB != waitingToRun[i]);
-           }
-       }
 
        /* Requested priority is valid so continue with process registration */
        PCB * newProcess = (PCB*)malloc(sizeof(PCB));
@@ -91,11 +77,11 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
        newProcess -> sp = (unsigned long) processSP;
        newProcess -> pid = pid;
 
-
        newProcess->contents=NULL;
        newProcess->size=NULL;
        newProcess->from=NULL;
        newProcess->xAxisCursorPosition=NULL;
+       newProcess->receiveAnyHead=newProcess->receiveAnyTail=NULL;
        addPCB(newProcess, priority);
    }
    else
@@ -103,7 +89,6 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
        /* Requested an invalid priority so must reject process */
        result = 1;
    }
-
    return result;
 }
 
@@ -117,7 +102,7 @@ int registerProcess(void (*code)(void), unsigned int pid, unsigned char priority
  * @param   [in] unsigned int newPriority: Priority of queue to which
  *          newPCB will be added
  * */
-int addPCB(PCB *newPCB, unsigned int newPriority)
+int addPCB(PCB *newPCB, int newPriority)
 {
     /* Must check whether desired queue is empty */
     if(waitingToRun[newPriority] != NULL)
@@ -351,10 +336,16 @@ else /* Subsequent SVCs */
         kcaptr -> rtnvalue = callerPCB->priority;
     break;
     case SENDMSG:
+        callerPCB = RUNNING;
         sendMsg = (SendMessage *)kcaptr ->arg1;
         kcaptr ->rtnvalue =
                 kernelSend(sendMsg->destinationMB,sendMsg->fromMB,
                            sendMsg->contents, sendMsg->size);
+        if(RUNNING != callerPCB)
+        {
+            callerPCB -> sp = get_PSP();
+            set_PSP(RUNNING -> sp);
+        }
     break;
     case RECEIVEMSG:
         recvMsg = (ReceiveMessage *)kcaptr ->arg1;

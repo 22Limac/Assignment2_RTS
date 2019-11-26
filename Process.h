@@ -1,16 +1,15 @@
 /*
  * @file    Process.h
- * @brief   Contains functionality to identify command
- *          passed from holding buffer and call its respective
- *          function with arguments
+ * @brief   Process structure definitions
+ *          Process function declarations
+ *
+ * @author  Larry Hughes (Original)
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
  * @date    13-Nov-2019 (edited)
  */
 #pragma once
-
-#include "Messages.h"
 
 #define TRUE    1
 #define FALSE   0
@@ -71,10 +70,13 @@ unsigned char priority;
 int * returnValue;
 
 int xAxisCursorPosition;
-
-int from;
+// Blocked Message variables
+int* from;
 int size;
 void* contents;
+
+struct ReceiveLog_ * receiveAnyHead;
+struct ReceiveLog_ * receiveAnyTail;
 
 } PCB;
 
@@ -90,7 +92,5 @@ extern void set_MSP(volatile unsigned long);
 extern unsigned long get_SP();
 extern void volatile save_registers();
 extern void volatile restore_registers();
-
-#else
 
 #endif

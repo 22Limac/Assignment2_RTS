@@ -15,9 +15,10 @@
 #define     ENTER       0x0d //ASCII Characters
 #define     BS          0x08
 #define     NUL         0x00
-#define     CLEAR_SCREEN "\x1b[2J"
-#define     RED_TEXT   "\x1b[1;31m"
-#define     CLEAR_MODE  "\x1b[m"
+#define     ESC         '\x1b'
+#define     CLEAR_SCREEN "\x1b[2J\x0"
+#define     RED_TEXT   "\x1b[1;31m\x0"
+#define     CLEAR_MODE  "\x1b[m\x0"
 #define     POSITION_DIGITS 2
 #define     TRUE        1   // For using Integers as booleans
 #define     FALSE       0
@@ -32,12 +33,17 @@
 #define     BIND_FAIL   -4
 #define     UNBIND_FAIL -5
 #define     DEFAULT_FAIL FAILURE
+#define     MESSAGE_SYS_LIMIT 32
+#define     RECEIVE_LOG_AMOUNT MESSAGE_SYS_LIMIT
+#define     UART_MB     0
+#define     CURSOR_STRING   9
 
 
 #ifndef     GLOBAL_UTILITIES
 #define     GLOBAL_UTILITIES
 
 extern void formatLineNumber(int,char*);
+extern void getProcessCursor(int,char*);
 
 #else
 

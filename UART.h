@@ -3,9 +3,10 @@
  * @details UART Constant Register Declarations
  *          UART constants
  *          UART Function Prototypes
+ *
  * @author  Liam JA MacDonald
  * @date    23-Sep-2019 (created)
- * @date    10-Oct-2019 (modified)
+ * @date    26-Oct-2019 (modified)
  */
 #pragma once
 
@@ -59,7 +60,7 @@
 
 
 #define NUL 0x00
-#define ESC 0x1b
+
 
 /* Cursor position string */
 
@@ -87,13 +88,14 @@ typedef struct CUP
     extern void forceOutput(char);
     extern char getDataRegister(void);
     extern void printString(char*);
-    extern void printToLine(int);
-    extern void printSequence(char*);
     extern void printWarning(int);
+    extern void uartProcess(void);
 
 
 #else
 
     void forceOutput(char);
+    void printString(char*);
+    void printWarning(int);
 
 #endif// GLOBAL_UART

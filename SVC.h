@@ -1,6 +1,6 @@
 /*
  * @file    SVC.h
- * @brief   Contains functionality of kernel service calls
+ * @brief   SVC function declarations
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
@@ -14,8 +14,8 @@
 #ifndef GLOBAL_SVC
 #define GLOBAL_SVC
 
-extern int registerProcess(void (*)(void), unsigned int, unsigned int);
-extern int addPCB(PCB *, unsigned int);
+extern int registerProcess(void (*)(void), unsigned int,int );
+extern int addPCB(PCB *,int);
 extern PCB * removePCB(void);
 extern void initpendSV(void);
 extern PCB * getRunningPCB(void);
@@ -23,7 +23,7 @@ extern PCB * getRunningPCB(void);
 #else
 
 void decrementPriority(void);
-int addPCB(PCB *, unsigned int);
+int addPCB(PCB *, int);
 PCB * removePCB(void);
 void initpendSV(void);
 void SVCall(void);

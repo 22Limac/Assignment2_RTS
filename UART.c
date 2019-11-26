@@ -3,23 +3,41 @@
  * @details Contains initialization routines to set
  *          a UART interrupts for transmission and receive.
  *          Definition of the UART ISR
+ *
  * @author  Liam JA MacDonald
  * @date    23-Sep-2019 (created)
- * @date    10-Oct-2019 (modified)
+ * @date    26-Oct-2019 (modified)
  */
 
 #define GLOBAL_UART
 #include "UART.h"
+#include "KernelCall.h"
 #include "Utilities.h"
 #include "SVC.h"
+#include "Process.h"
+#include "Messages.h"
+
 
 #define TRUE    1
 #define FALSE   0
 /*UART interrupt buffer */
 static char dataRegister;
 static int gotData = FALSE;
+static PCB * printingProcess;
 
-
+void uartProcess(void)
+{
+    bind(UART_MB);
+    int toMB;
+    char cont[MESSAGE_SYS_LIMIT];
+    int size = MESSAGE_SYS_LIMIT;
+    while(1)
+    {
+        recvMessage(ANY, &toMB, cont, size);
+        printingProcess = getOwnerPCB(toMB);
+        printString(cont);
+    }
+}
 
 int getDataRegister(char * data)
 {
@@ -112,27 +130,20 @@ void forceOutput(char data)
  */
 void printString(char* string)
 {
-    PCB* runningPCB = getRunningPCB();
+    int increaseCursor = (*string == ESC)? FALSE : TRUE;
+
     while(*string)
     {
         forceOutput(*(string++));
-        runningPCB->xAxisCursorPosition++;
+        printingProcess->xAxisCursorPosition+=increaseCursor;
     }
 }
 
-void printSequence(char* string)
-{
-    while(*string)
-    {
-        forceOutput(*(string++));
-    }
-}
 
 void printWarning(int returnValue)
 {
     if(returnValue<NULL)
     {
-        printSequence(RED_TEXT);
         switch(returnValue)
         {
         case DEFAULT_FAIL:
@@ -151,22 +162,16 @@ void printWarning(int returnValue)
             printString("UNBIND FAILURE");
         break;
         }
-        printSequence(CLEAR_MODE);
     }
 }
 
-void printToLine(int lineNumber)
-{
-    char printLine[POSITION_DIGITS];
-    char cursorPosition[POSITION_DIGITS];
-    PCB* runningPCB = getRunningPCB();
-
-    formatLineNumber(lineNumber, printLine);
-    formatLineNumber(runningPCB->xAxisCursorPosition, cursorPosition);
-    cursor formattedString = {ESC, '[',printLine[0] , printLine[1], ';', cursorPosition[0], cursorPosition[1], 'H',NUL};
-    printSequence((char*)&formattedString);
-
-}
+/*
+ * @brief   Handles receive and transmit interrupts
+ * @detail  check if receive interrupt has been set
+ *          if it has set gotData in the input queue
+ *          if the the output queue isn't empty force
+ *          next available data out
+ */
 void UART0_IntHandler(void)
 {
 /*

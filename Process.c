@@ -1,12 +1,14 @@
 /*
  * @file    Process.c
- * @brief   Contains functionality to identify command
- *          passed from holding buffer and call its respective
- *          function with arguments
+ * @brief   Contains functionality for getting and
+ *          setting the PSP and MSP
+ *          Saving and Restoring CPU registers
+ *
+ * @author  Larry Hughes (Original)
  * @author  Liam JA MacDonald
  * @author  Patrick Wells
  * @date    20-Oct-2019 (created)
- * @date
+ * @date    26-Nov-2019 (edited)
  */
 
 #include <stdio.h>

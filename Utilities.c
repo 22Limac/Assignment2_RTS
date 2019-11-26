@@ -5,8 +5,13 @@
  *      Author: LiamMacDonald
  */
 #define GLOBAL_UTILITIES
-#define TWO_DIGITS 2
+#define TWO_DIGITS 10
+#include <stdlib.h>
 #include "Utilities.h"
+#include "Messages.h"
+#include "SVC.h"
+#include "UART.h"
+
 
 void formatLineNumber(int val, char* rtn)
 {
@@ -18,5 +23,18 @@ void formatLineNumber(int val, char* rtn)
     {
         sprintf(rtn,"%d",val);
     }
+}
+
+void getProcessCursor(int lineNumber, char *cursorString)
+{
+    char printLine[POSITION_DIGITS];
+    char cursorPosition[POSITION_DIGITS];
+    PCB* runningPCB = getRunningPCB();
+
+    formatLineNumber(lineNumber, printLine);
+    formatLineNumber(runningPCB->xAxisCursorPosition, cursorPosition);
+    cursor formattedString = {ESC, '[',printLine[0] , printLine[1], ';', cursorPosition[0], cursorPosition[1], 'H',NUL};
+    memcpy(cursorString, (char*)&formattedString, 9);
+
 }
 

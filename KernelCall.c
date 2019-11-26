@@ -11,6 +11,7 @@
 #include "KernelCall.h"
 #include "Process.h"
 #include "Messages.h"
+
 /*
  * @brief   Used to set R7, to point to Kernel Argument passed to SVC
  * @param   [in] volatile unsigned long data: passes address of argument
@@ -185,6 +186,8 @@ int recvMessage(int bindedMB, int * returnMB, void * contents, int maxSize)
 
     return procKernelCall( RECEIVEMSG, &recvArgs);
 }
+
+
 
 
 
